@@ -1,13 +1,13 @@
 import React, { useRef } from 'react';
-import { Heart, Wrench, Trophy, Truck, ChevronLeft, ChevronRight, Play } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Flag, Wrench, Award, Car, ChevronLeft, ChevronRight, ArrowRight, Trophy } from 'lucide-react';
 import ProductCard from '../components/ProductCard';
-import { products, features, IMG } from '../mock';
+import { products, features, teams, categories, IMG } from '../mock';
 
-const iconMap = { Heart, Wrench, Trophy, Truck };
+const iconMap = { Flag, Wrench, Award, Car };
 
 const Home = () => {
   const scroller = useRef(null);
-  const [playing, setPlaying] = React.useState(false);
 
   const scroll = (dir) => {
     if (!scroller.current) return;
@@ -17,53 +17,56 @@ const Home = () => {
   return (
     <div>
       {/* Hero */}
-      <section className="max-w-[1300px] mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
-          {/* Video */}
-          <div className="relative rounded-lg overflow-hidden shadow-md aspect-video bg-black">
-            {playing ? (
-              <iframe
-                className="w-full h-full"
-                src="https://www.youtube-nocookie.com/embed/7pfYh7PpG-U?autoplay=1"
-                title="Trabitipp"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
-            ) : (
-              <button onClick={() => setPlaying(true)} className="group w-full h-full relative">
-                <img src={IMG.mechanic1} alt="Trabitipp Video" className="w-full h-full object-cover" />
-                <div className="absolute inset-0 bg-black/30 group-hover:bg-black/40 transition-colors flex items-center justify-center">
-                  <span className="w-16 h-16 rounded-full bg-[#e11d1d] flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                    <Play className="w-8 h-8 text-white ml-1" fill="white" />
-                  </span>
-                </div>
-                <div className="absolute bottom-4 left-4 text-white font-bold text-xl drop-shadow-lg">#Trabitipp – Wintermantel wechseln</div>
-              </button>
-            )}
+      <section className="relative bg-[#17191d] text-white overflow-hidden">
+        <div className="absolute inset-0">
+          <img src={IMG.hero_race} alt="Motorsport" className="w-full h-full object-cover opacity-30" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#17191d] via-[#17191d]/85 to-[#17191d]/40" />
+        </div>
+        <div className="relative max-w-[1300px] mx-auto px-4 py-20 md:py-28">
+          <div className="max-w-2xl">
+            <span className="inline-flex items-center gap-2 bg-[#e11d1d] text-white text-xs font-bold uppercase tracking-widest px-3 py-1.5 rounded mb-5">
+              <Trophy className="w-4 h-4" /> Rennsport-erprobt
+            </span>
+            <h1 className="font-logo text-4xl md:text-6xl font-bold uppercase leading-[1.05] mb-5">
+              Trabant-Tuning<br/>vom <span className="text-[#e11d1d]">Motorsport-Profi</span>
+            </h1>
+            <p className="text-gray-200 text-lg leading-relaxed mb-8 max-w-xl">
+              Willkommen bei Kupke-Tuning – Eurem Partner für den Trabant im Rennsport und auf der Straße. Eigenentwickelte Spezialteile für Trabant 1.1 & 601, erprobt in Ralley, Berg- und Slalomeinsatz.
+            </p>
+            <div className="flex flex-wrap gap-4">
+              <Link to="/category/tuning" className="inline-flex items-center gap-2 bg-[#e11d1d] hover:bg-[#b3161c] text-white font-semibold px-7 py-3.5 rounded-md transition-colors uppercase tracking-wide">
+                Zum Tuning-Shop <ArrowRight className="w-5 h-5" />
+              </Link>
+              <Link to="/category/motorsport" className="inline-flex items-center gap-2 border border-white/40 hover:bg-white hover:text-[#17191d] text-white font-semibold px-7 py-3.5 rounded-md transition-colors uppercase tracking-wide">
+                Motorsport-Teile
+              </Link>
+            </div>
           </div>
+        </div>
+      </section>
 
-          {/* Welcome text */}
-          <div>
-            <h1 className="font-logo text-3xl md:text-4xl font-bold text-[#1a1a1a] mb-4">Herzlich Willkommen bei TRABANTWELT!</h1>
-            <p className="font-bold text-[#1a1a1a] mb-4">Schön, dass Ihr da seid!</p>
-            <p className="text-[#3a4658] leading-relaxed mb-4">Euer Herz schlägt für den Trabant? Dann sind wir der Begleiter für Euer Projekt! Trabantwelt – das Versandhaus für hochwertige Ersatzteile und Zubehör rund um das Zwickauer Kultauto!</p>
-            <p className="text-[#3a4658] leading-relaxed mb-4">Bei uns findet Ihr Ersatzteile in Originalqualität und Neuproduktionen, aus eigener Entwicklung und Fertigung. Wir garantieren Passgenauigkeit und Langlebigkeit, welche konstant im Rennsport, auf Prüfständen und im Straßeneinsatz bestätigt werden.</p>
-            <p className="text-[#3a4658] leading-relaxed">Wir wünschen Euch viel Freude beim Einkauf!</p>
-          </div>
+      {/* Category tiles */}
+      <section className="max-w-[1300px] mx-auto px-4 py-12">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {categories.slice(0, 8).map((cat) => (
+            <Link key={cat.id} to={`/category/${cat.id}`} className="group border border-gray-200 rounded-lg p-5 text-center hover:border-[#e11d1d] hover:shadow-md transition-all">
+              <span className="font-logo text-lg font-bold text-[#17191d] group-hover:text-[#e11d1d] transition-colors uppercase">{cat.name}</span>
+            </Link>
+          ))}
         </div>
       </section>
 
       {/* Product carousel */}
       <section className="max-w-[1300px] mx-auto px-4 py-6">
         <div className="flex items-center justify-between mb-5">
-          <h2 className="font-logo text-2xl font-bold text-[#1a1a1a]">Beliebte Produkte</h2>
+          <h2 className="font-logo text-2xl md:text-3xl font-bold text-[#17191d] uppercase">Beliebte Tuningteile</h2>
           <div className="flex gap-2">
-            <button onClick={() => scroll(-1)} aria-label="zurück" className="w-10 h-10 rounded-full border border-gray-300 flex items-center justify-center text-gray-600 hover:bg-[#008d36] hover:text-white hover:border-[#008d36] transition-colors"><ChevronLeft className="w-5 h-5" /></button>
-            <button onClick={() => scroll(1)} aria-label="weiter" className="w-10 h-10 rounded-full border border-gray-300 flex items-center justify-center text-gray-600 hover:bg-[#008d36] hover:text-white hover:border-[#008d36] transition-colors"><ChevronRight className="w-5 h-5" /></button>
+            <button onClick={() => scroll(-1)} aria-label="zurück" className="w-10 h-10 rounded-full border border-gray-300 flex items-center justify-center text-gray-600 hover:bg-[#e11d1d] hover:text-white hover:border-[#e11d1d] transition-colors"><ChevronLeft className="w-5 h-5" /></button>
+            <button onClick={() => scroll(1)} aria-label="weiter" className="w-10 h-10 rounded-full border border-gray-300 flex items-center justify-center text-gray-600 hover:bg-[#e11d1d] hover:text-white hover:border-[#e11d1d] transition-colors"><ChevronRight className="w-5 h-5" /></button>
           </div>
         </div>
         <div ref={scroller} className="flex gap-5 overflow-x-auto pb-4 scroll-smooth snap-x" style={{ scrollbarWidth: 'thin' }}>
-          {products.slice(0, 12).map((p) => (
+          {products.slice(0, 14).map((p) => (
             <div key={p.id} className="snap-start shrink-0 w-[280px]">
               <ProductCard product={p} />
             </div>
@@ -72,16 +75,18 @@ const Home = () => {
       </section>
 
       {/* Features */}
-      <section className="bg-[#f4f6f9] border-y border-gray-200 mt-6">
+      <section className="bg-[#f4f5f7] border-y border-gray-200 mt-6">
         <div className="max-w-[1300px] mx-auto px-4 py-14">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
             {features.map((f, i) => {
               const Icon = iconMap[f.icon];
               return (
                 <div key={i} className="text-center flex flex-col items-center">
-                  <Icon className="w-12 h-12 text-[#008d36] mb-4" strokeWidth={1.5} />
-                  <h3 className="font-logo text-xl font-bold text-[#1a1a1a] mb-3">{f.title}</h3>
-                  <p className="text-[#3a4658] text-sm leading-relaxed max-w-[260px]">{f.text}</p>
+                  <div className="w-16 h-16 rounded-full bg-[#e11d1d]/10 flex items-center justify-center mb-4">
+                    <Icon className="w-8 h-8 text-[#e11d1d]" strokeWidth={1.8} />
+                  </div>
+                  <h3 className="font-logo text-xl font-bold text-[#17191d] mb-3 uppercase">{f.title}</h3>
+                  <p className="text-gray-600 text-sm leading-relaxed max-w-[260px]">{f.text}</p>
                 </div>
               );
             })}
@@ -89,11 +94,38 @@ const Home = () => {
         </div>
       </section>
 
-      {/* Category showcase */}
+      {/* Race teams */}
+      <section className="bg-[#17191d] text-white">
+        <div className="max-w-[1300px] mx-auto px-4 py-16">
+          <div className="text-center mb-10">
+            <span className="inline-flex items-center gap-2 text-[#e11d1d] text-sm font-bold uppercase tracking-widest mb-3"><Flag className="w-4 h-4" /> Kupke-Tuning Motorsport</span>
+            <h2 className="font-logo text-3xl md:text-4xl font-bold uppercase">Diese Teams fahren mit uns</h2>
+            <p className="text-gray-400 mt-3 max-w-2xl mx-auto">Wir unterstützen junge Teams in ihrer Entwicklung – mit unseren speziell entwickelten Tuningteilen für den Trabant.</p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+            {teams.map((t) => (
+              <div key={t.name} className="bg-white/5 border border-white/10 rounded-lg p-5 hover:border-[#e11d1d]/60 transition-colors">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="w-9 h-9 rounded-full bg-[#e11d1d] flex items-center justify-center"><Trophy className="w-5 h-5" /></span>
+                  <div>
+                    <p className="font-logo font-bold text-lg leading-none">{t.name}</p>
+                    <p className="text-xs text-gray-400">{t.ort}</p>
+                  </div>
+                </div>
+                <p className="text-[#e11d1d] text-xs font-bold uppercase tracking-wide mb-1">{t.disziplin}</p>
+                <p className="font-semibold text-sm mb-2">{t.fahrzeug}</p>
+                <p className="text-gray-400 text-sm leading-relaxed">{t.text}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* New products */}
       <section className="max-w-[1300px] mx-auto px-4 py-14">
-        <h2 className="font-logo text-2xl font-bold text-[#1a1a1a] mb-6 text-center">Neuheiten im Sortiment</h2>
+        <h2 className="font-logo text-2xl md:text-3xl font-bold text-[#17191d] mb-6 text-center uppercase">Neu im Sortiment</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          {products.filter((p) => p.badge === 'Neu').concat(products.filter((p) => p.badge === 'Tuning')).slice(0, 4).map((p) => (
+          {products.filter((p) => p.badge === 'Neu').concat(products.filter((p) => p.badge === 'Exclusiv' || p.badge === 'Motorsport')).slice(0, 4).map((p) => (
             <ProductCard key={p.id} product={p} />
           ))}
         </div>

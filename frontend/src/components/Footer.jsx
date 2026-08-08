@@ -1,14 +1,14 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
-import { Facebook, Instagram, Youtube, Youtube as Yt } from 'lucide-react';
+import { Facebook, Instagram, Youtube, MapPin } from 'lucide-react';
+import { brands } from '../mock';
 
 const FooterCol = ({ title, links }) => (
   <div>
-    <h4 className="text-[#008d36] font-bold text-lg mb-4">{title}</h4>
+    <h4 className="text-[#e11d1d] font-bold text-lg mb-4 uppercase tracking-wide">{title}</h4>
     <ul className="space-y-2.5">
       {links.map((l) => (
         <li key={l}>
-          <a href="#" className="text-[#3a4658] text-[15px] hover:text-[#008d36] transition-colors">{l}</a>
+          <a href="#" className="text-gray-300 text-[15px] hover:text-white transition-colors">{l}</a>
         </li>
       ))}
     </ul>
@@ -17,51 +17,64 @@ const FooterCol = ({ title, links }) => (
 
 const Footer = () => {
   return (
-    <footer className="bg-white border-t border-gray-200 mt-4">
+    <footer className="bg-[#17191d] text-white mt-4">
+      {/* Brand partners strip */}
+      <div className="border-b border-white/10">
+        <div className="max-w-[1300px] mx-auto px-4 py-8">
+          <p className="text-center text-gray-400 text-sm uppercase tracking-[0.2em] mb-5">Unsere Marken-Partner</p>
+          <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-4">
+            {brands.map((b) => (
+              <span key={b} className="font-logo text-lg md:text-xl font-bold text-gray-400 hover:text-white transition-colors">{b}</span>
+            ))}
+          </div>
+        </div>
+      </div>
+
       <div className="max-w-[1300px] mx-auto px-4 py-12">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
-          {/* Service-Hotline */}
+          {/* Contact */}
           <div>
-            <h4 className="text-[#008d36] font-bold text-lg mb-4">Service-Hotline</h4>
-            <p className="text-[#3a4658] text-sm mb-3">Unterstützung und Beratung unter:</p>
-            <a href="tel:037521492520" className="block text-[#1a1a1a] font-bold text-xl mb-2 hover:text-[#008d36] transition-colors">(0375) 21492520</a>
-            <p className="text-[#3a4658] text-sm mb-4">Mo-Fr, 8:00 - 12:00 Uhr und 12:30 - 16:00 Uhr</p>
-            <h5 className="text-[#008d36] font-bold mb-1">Abholshop</h5>
-            <p className="text-[#3a4658] text-sm mb-4">Di - Fr 13:00 - 15:00 Uhr</p>
-            <button className="bg-[#2b3f5c] hover:bg-[#1f2f45] text-white text-sm font-semibold px-6 py-3 rounded-md transition-colors">
-              Vertrag widerrufen
+            <h4 className="text-[#e11d1d] font-bold text-lg mb-4 uppercase tracking-wide">Kupke-Tuning</h4>
+            <p className="text-gray-300 text-sm mb-4">Ihr Partner für den Trabant im Rennsport und auf der Straße.</p>
+            <div className="flex items-start gap-2 text-gray-300 text-sm mb-3">
+              <MapPin className="w-5 h-5 text-[#e11d1d] shrink-0" />
+              <span>Kupke-Tuning<br/>08485 Lengenfeld<br/>Sachsen</span>
+            </div>
+            <p className="text-gray-400 text-xs mb-4">Beratung & Anfragen gerne per Kontaktformular.</p>
+            <button className="bg-[#e11d1d] hover:bg-[#b3161c] text-white text-sm font-semibold px-6 py-3 rounded-md transition-colors uppercase tracking-wide">
+              Kontakt aufnehmen
             </button>
           </div>
 
-          <FooterCol title="Über uns" links={['Datenschutz', 'Kontakt', 'Impressum', 'AGB', 'Cookies konfigurieren']} />
-          <FooterCol title="Informationen" links={['Versandkosten', 'Zahlungsarten', 'Widerrufsrecht', 'Hinweise zum Altteilpfand', 'Recycling', 'Barrierefreiheit']} />
+          <FooterCol title="Über uns" links={['Datenschutz', 'Kontakt', 'Impressum', 'AGB', 'Motorsport-Historie']} />
+          <FooterCol title="Informationen" links={['Versandkosten', 'Zahlungsarten', 'Widerrufsrecht', 'Komplettaufbau', 'Sonderanfertigungen']} />
 
-          {/* TrabiTipp */}
+          {/* Motorsport claim */}
           <div>
-            <div className="font-logo text-[#1a1a1a] text-2xl font-bold mb-1">TrabiTipp</div>
-            <p className="text-[#e11d1d] font-bold text-sm flex items-center gap-1 mb-1">Dein YouTube Kanal! <Yt className="w-4 h-4" /></p>
-            <p className="text-[#3a4658] text-xs mb-4">Powered by Zündgebär!</p>
-            <div className="inline-flex items-center justify-center w-32 h-32 rounded-full bg-[#f4f6f9] border border-gray-200 text-[#008d36] font-bold text-center text-sm p-4">
-              4,83 / 5⭐<br/>Käuferschutz
+            <div className="font-logo text-2xl font-bold mb-2 uppercase">Motorsport<span className="text-[#e11d1d]">.</span></div>
+            <p className="text-gray-300 text-sm mb-4">Unsere Teile sind im aktiven Rennsport – Ralley, Berg & Slalom – erprobt. Wir unterstützen junge Teams in ihrer Entwicklung.</p>
+            <div className="inline-flex items-center gap-3 bg-white/5 border border-white/10 rounded-lg px-4 py-3">
+              <span className="font-logo text-3xl font-bold text-[#e11d1d]">RS</span>
+              <span className="text-sm text-gray-300">Rennsport-erprobte<br/>Eigenentwicklungen</span>
             </div>
           </div>
         </div>
 
         {/* Payment + socials */}
-        <div className="mt-12 pt-8 border-t border-gray-200 flex flex-col md:flex-row items-center justify-between gap-6">
+        <div className="mt-12 pt-8 border-t border-white/10 flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex flex-wrap items-center gap-3">
-            {['Vorkasse', 'PayPal', 'Rechnung', 'VISA', 'Apple Pay', 'Google Pay', 'SEPA', 'DHL'].map((p) => (
-              <span key={p} className="px-3 py-2 border border-gray-200 rounded bg-white text-xs font-semibold text-gray-600 shadow-sm">{p}</span>
+            {['Vorkasse', 'PayPal', 'Rechnung', 'VISA', 'SEPA', 'DHL'].map((p) => (
+              <span key={p} className="px-3 py-2 border border-white/15 rounded bg-white/5 text-xs font-semibold text-gray-300">{p}</span>
             ))}
           </div>
-          <div className="flex items-center gap-4 text-[#4a5568]">
-            <a href="https://facebook.com" target="_blank" rel="noreferrer" className="hover:text-[#008d36] transition-colors"><Facebook className="w-5 h-5" /></a>
-            <a href="https://instagram.com" target="_blank" rel="noreferrer" className="hover:text-[#008d36] transition-colors"><Instagram className="w-5 h-5" /></a>
-            <a href="https://youtube.com" target="_blank" rel="noreferrer" className="hover:text-[#008d36] transition-colors"><Youtube className="w-5 h-5" /></a>
+          <div className="flex items-center gap-4 text-gray-400">
+            <a href="https://facebook.com" target="_blank" rel="noreferrer" className="hover:text-white transition-colors"><Facebook className="w-5 h-5" /></a>
+            <a href="https://instagram.com" target="_blank" rel="noreferrer" className="hover:text-white transition-colors"><Instagram className="w-5 h-5" /></a>
+            <a href="https://youtube.com" target="_blank" rel="noreferrer" className="hover:text-white transition-colors"><Youtube className="w-5 h-5" /></a>
           </div>
         </div>
-        <div className="mt-6 text-center text-xs text-gray-400">
-          © {new Date().getFullYear()} Trabantwelt-Klon – Demo-Shop. Alle Daten sind Beispieldaten.
+        <div className="mt-6 text-center text-xs text-gray-500">
+          © {new Date().getFullYear()} Kupke-Tuning – Demo-Neugestaltung. Alle Daten sind Beispieldaten.
         </div>
       </div>
     </footer>

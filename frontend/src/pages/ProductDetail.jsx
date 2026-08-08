@@ -30,16 +30,16 @@ const ProductDetail = () => {
     <div className="max-w-[1300px] mx-auto px-4 py-8">
       {/* Breadcrumb */}
       <div className="flex items-center flex-wrap gap-1.5 text-sm text-gray-500 mb-6">
-        <Link to="/" className="hover:text-[#008d36]">Startseite</Link>
+        <Link to="/" className="hover:text-[#e11d1d]">Startseite</Link>
         <ChevronRight className="w-4 h-4" />
-        {category && <><Link to={`/category/${category.id}`} className="hover:text-[#008d36]">{category.name}</Link><ChevronRight className="w-4 h-4" /></>}
+        {category && <><Link to={`/category/${category.id}`} className="hover:text-[#e11d1d]">{category.name}</Link><ChevronRight className="w-4 h-4" /></>}
         <span className="text-[#1a1a1a] font-semibold line-clamp-1">{product.name}</span>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
         {/* Image */}
         <div className="border border-gray-200 rounded-lg p-8 flex items-center justify-center bg-white relative">
-          {product.badge && <span className="absolute top-4 left-4 bg-[#008d36] text-white text-xs font-bold px-3 py-1 rounded">{product.badge}</span>}
+          {product.badge && <span className="absolute top-4 left-4 bg-[#e11d1d] text-white text-xs font-bold px-3 py-1 rounded">{product.badge}</span>}
           <img src={product.image} alt={product.name} className="max-h-[420px] object-contain" />
         </div>
 
@@ -49,8 +49,8 @@ const ProductDetail = () => {
           <p className="text-sm text-gray-400 mb-5">Artikel-Nr.: {product.id}</p>
 
           <div className="flex items-center gap-2 text-sm mb-5">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#008d36] inline-block" />
-            <span className="text-[#008d36] font-semibold">Sofort verfügbar</span>
+            <span className="w-2.5 h-2.5 rounded-full bg-[#e11d1d] inline-block" />
+            <span className="text-[#e11d1d] font-semibold">Sofort verfügbar</span>
             <span className="text-gray-500">| Lieferzeit: {product.delivery}</span>
           </div>
 
@@ -66,19 +66,19 @@ const ProductDetail = () => {
               <span className="w-12 text-center font-semibold">{qty}</span>
               <button onClick={() => setQty((q) => q + 1)} className="w-11 h-12 flex items-center justify-center text-gray-600 hover:bg-gray-100 transition-colors"><Plus className="w-4 h-4" /></button>
             </div>
-            <button onClick={handleAdd} className={`flex-1 h-12 rounded-md font-semibold text-white flex items-center justify-center gap-2 transition-colors ${added ? 'bg-[#00732c]' : 'bg-[#008d36] hover:bg-[#00732c]'}`}>
+            <button onClick={handleAdd} className={`flex-1 h-12 rounded-md font-semibold text-white flex items-center justify-center gap-2 transition-colors ${added ? 'bg-[#b3161c]' : 'bg-[#e11d1d] hover:bg-[#b3161c]'}`}>
               {added ? (<><Check className="w-5 h-5" /> Im Warenkorb</>) : 'In den Warenkorb'}
             </button>
-            <button onClick={() => alert('Wunschliste folgt in Kürze!')} className="w-12 h-12 rounded-md border border-gray-300 flex items-center justify-center text-gray-500 hover:text-[#008d36] hover:border-[#008d36] transition-colors"><Heart className="w-5 h-5" /></button>
+            <button onClick={() => alert('Wunschliste folgt in Kürze!')} className="w-12 h-12 rounded-md border border-gray-300 flex items-center justify-center text-gray-500 hover:text-[#e11d1d] hover:border-[#e11d1d] transition-colors"><Heart className="w-5 h-5" /></button>
           </div>
 
           {added && (
-            <button onClick={() => navigate('/cart')} className="text-[#008d36] font-semibold text-sm underline mb-6">Zum Warenkorb →</button>
+            <button onClick={() => navigate('/cart')} className="text-[#e11d1d] font-semibold text-sm underline mb-6">Zum Warenkorb →</button>
           )}
 
           <div className="grid grid-cols-2 gap-4 mb-6">
-            <div className="flex items-center gap-2 text-sm text-gray-600"><Truck className="w-5 h-5 text-[#008d36]" /> Täglicher DHL-Versand</div>
-            <div className="flex items-center gap-2 text-sm text-gray-600"><ShieldCheck className="w-5 h-5 text-[#008d36]" /> Passgenauigkeit garantiert</div>
+            <div className="flex items-center gap-2 text-sm text-gray-600"><Truck className="w-5 h-5 text-[#e11d1d]" /> Täglicher DHL-Versand</div>
+            <div className="flex items-center gap-2 text-sm text-gray-600"><ShieldCheck className="w-5 h-5 text-[#e11d1d]" /> Passgenauigkeit garantiert</div>
           </div>
 
           <div className="border-t border-gray-200 pt-6">

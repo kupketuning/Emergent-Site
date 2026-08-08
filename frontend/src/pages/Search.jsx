@@ -27,7 +27,7 @@ const Search = () => {
         <div className="py-16 text-center">
           <SearchX className="w-14 h-14 text-gray-300 mx-auto mb-4" />
           <p className="text-gray-500 mb-6">Keine Produkte gefunden. Versucht es mit einem anderen Suchbegriff.</p>
-          <Link to="/" className="inline-block bg-[#008d36] hover:bg-[#00732c] text-white font-semibold px-6 py-3 rounded-md transition-colors">Zur Startseite</Link>
+          <Link to="/" className="inline-block bg-[#e11d1d] hover:bg-[#00732c] text-white font-semibold px-6 py-3 rounded-md transition-colors">Zur Startseite</Link>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">

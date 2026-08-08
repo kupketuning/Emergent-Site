@@ -30,7 +30,7 @@ const Category = () => {
     <div className="max-w-[1300px] mx-auto px-4 py-8">
       {/* Breadcrumb */}
       <div className="flex items-center gap-1.5 text-sm text-gray-500 mb-6">
-        <Link to="/" className="hover:text-[#008d36]">Startseite</Link>
+        <Link to="/" className="hover:text-[#e11d1d]">Startseite</Link>
         <ChevronRight className="w-4 h-4" />
         <span className="text-[#1a1a1a] font-semibold">{category.name}</span>
       </div>
@@ -45,11 +45,11 @@ const Category = () => {
             <h3 className="font-bold text-[#1a1a1a] mb-3">Unterkategorien</h3>
             <ul className="space-y-1">
               <li>
-                <button onClick={() => setActiveSub('all')} className={`w-full text-left px-3 py-2 rounded text-sm transition-colors ${activeSub === 'all' ? 'bg-[#008d36] text-white' : 'text-gray-700 hover:bg-[#f0f5fa]'}`}>Alle anzeigen</button>
+                <button onClick={() => setActiveSub('all')} className={`w-full text-left px-3 py-2 rounded text-sm transition-colors ${activeSub === 'all' ? 'bg-[#e11d1d] text-white' : 'text-gray-700 hover:bg-[#f0f5fa]'}`}>Alle anzeigen</button>
               </li>
               {category.sub.map((s) => (
                 <li key={s}>
-                  <button onClick={() => setActiveSub(s)} className={`w-full text-left px-3 py-2 rounded text-sm transition-colors ${activeSub === s ? 'bg-[#008d36] text-white' : 'text-gray-700 hover:bg-[#f0f5fa]'}`}>{s}</button>
+                  <button onClick={() => setActiveSub(s)} className={`w-full text-left px-3 py-2 rounded text-sm transition-colors ${activeSub === s ? 'bg-[#e11d1d] text-white' : 'text-gray-700 hover:bg-[#f0f5fa]'}`}>{s}</button>
                 </li>
               ))}
             </ul>
@@ -60,7 +60,7 @@ const Category = () => {
         <div>
           <div className="flex items-center justify-end mb-5">
             <label className="text-sm text-gray-600 mr-2">Sortieren:</label>
-            <select value={sort} onChange={(e) => setSort(e.target.value)} className="h-10 border border-gray-300 rounded-md px-3 text-sm outline-none focus:border-[#008d36]">
+            <select value={sort} onChange={(e) => setSort(e.target.value)} className="h-10 border border-gray-300 rounded-md px-3 text-sm outline-none focus:border-[#e11d1d]">
               <option value="name">Name (A-Z)</option>
               <option value="price-asc">Preis aufsteigend</option>
               <option value="price-desc">Preis absteigend</option>
