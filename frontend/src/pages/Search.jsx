@@ -2,21 +2,23 @@ import React, { useMemo } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { SearchX } from 'lucide-react';
 import ProductCard from '../components/ProductCard';
-import { products } from '../mock';
+import { useProducts } from '../context/ProductsContext';
 
 const Search = () => {
   const [params] = useSearchParams();
+  const { products } = useProducts();
   const q = (params.get('q') || '').toLowerCase().trim();
 
   const results = useMemo(() => {
     if (!q) return [];
     return products.filter((p) =>
       p.name.toLowerCase().includes(q) ||
-      p.desc.toLowerCase().includes(q) ||
-      String(p.id).includes(q) ||
+      p.description.toLowerCase().includes(q) ||
+      String(p.art_nr || '').toLowerCase().includes(q) ||
+      (p.brand || '').toLowerCase().includes(q) ||
       (p.sub || '').toLowerCase().includes(q)
     );
-  }, [q]);
+  }, [q, products]);
 
   return (
     <div className="max-w-[1300px] mx-auto px-4 py-8">

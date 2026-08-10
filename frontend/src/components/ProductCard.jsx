@@ -35,8 +35,8 @@ const ProductCard = ({ product }) => {
         <Link to={`/product/${product.id}`}>
           <h3 className="text-[15px] font-bold text-[#17191d] leading-snug hover:text-[#e11d1d] transition-colors line-clamp-2 min-h-[42px]">{product.name}</h3>
         </Link>
-        <p className="text-xs text-gray-400 mt-1">Art.-Nr.: {product.id}</p>
-        <p className="text-[13px] text-gray-600 mt-2 line-clamp-3 flex-1">{product.desc}</p>
+        <p className="text-xs text-gray-400 mt-1">Art.-Nr.: {product.art_nr}</p>
+        <p className="text-[13px] text-gray-600 mt-2 line-clamp-3 flex-1">{product.description}</p>
 
         <div className="flex items-center gap-1.5 mt-3 text-[13px]">
           <span className="w-2 h-2 rounded-full bg-[#e11d1d] inline-block" />

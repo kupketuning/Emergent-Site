@@ -2,13 +2,15 @@ import React, { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ChevronRight, Minus, Plus, Check, Truck, ShieldCheck, Heart } from 'lucide-react';
 import { useCart } from '../context/CartContext';
-import { products, categories, formatPrice } from '../mock';
+import { categories, formatPrice } from '../mock';
+import { useProducts } from '../context/ProductsContext';
 import ProductCard from '../components/ProductCard';
 
 const ProductDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const product = products.find((p) => String(p.id) === String(id));
+  const { products, getById } = useProducts();
+  const product = getById(id);
   const { addItem } = useCart();
   const [qty, setQty] = useState(1);
   const [added, setAdded] = useState(false);
@@ -46,7 +48,7 @@ const ProductDetail = () => {
         {/* Info */}
         <div>
           <h1 className="font-logo text-2xl md:text-3xl font-bold text-[#1a1a1a] leading-tight mb-2">{product.name}</h1>
-          <p className="text-sm text-gray-400 mb-5">Artikel-Nr.: {product.id}</p>
+          <p className="text-sm text-gray-400 mb-5">Art.-Nr.: {product.art_nr}</p>
 
           <div className="flex items-center gap-2 text-sm mb-5">
             <span className="w-2.5 h-2.5 rounded-full bg-[#e11d1d] inline-block" />
@@ -82,8 +84,9 @@ const ProductDetail = () => {
           </div>
 
           <div className="border-t border-gray-200 pt-6">
-            <h3 className="font-bold text-[#1a1a1a] mb-2">Beschreibung</h3>
-            <p className="text-[#3a4658] leading-relaxed">{product.desc}</p>
+            <h3 className="font-bold text-[#17191d] mb-2">Beschreibung</h3>
+            <p className="text-[#3a4658] leading-relaxed">{product.description}</p>
+            {product.fahrzeug && <p className="text-sm text-gray-500 mt-3">Passend für: <span className="font-semibold text-[#17191d]">{product.fahrzeug}</span></p>}
           </div>
         </div>
       </div>

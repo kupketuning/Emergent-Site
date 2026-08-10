@@ -2,12 +2,14 @@ import React, { useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Flag, Wrench, Award, Car, ChevronLeft, ChevronRight, ArrowRight, Trophy } from 'lucide-react';
 import ProductCard from '../components/ProductCard';
-import { products, features, teams, categories, IMG } from '../mock';
+import { features, teams, categories, IMG } from '../mock';
+import { useProducts } from '../context/ProductsContext';
 
 const iconMap = { Flag, Wrench, Award, Car };
 
 const Home = () => {
   const scroller = useRef(null);
+  const { products } = useProducts();
 
   const scroll = (dir) => {
     if (!scroller.current) return;

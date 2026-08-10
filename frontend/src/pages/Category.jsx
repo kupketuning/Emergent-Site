@@ -2,10 +2,12 @@ import React, { useMemo, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ChevronRight } from 'lucide-react';
 import ProductCard from '../components/ProductCard';
-import { products, categories } from '../mock';
+import { categories } from '../mock';
+import { useProducts } from '../context/ProductsContext';
 
 const Category = () => {
   const { id } = useParams();
+  const { products, loading } = useProducts();
   const category = categories.find((c) => c.id === id);
   const [activeSub, setActiveSub] = useState('all');
   const [sort, setSort] = useState('name');
@@ -20,7 +22,7 @@ const Category = () => {
     else if (sort === 'price-desc') l.sort((a, b) => b.price - a.price);
     else l.sort((a, b) => a.name.localeCompare(b.name));
     return l;
-  }, [id, activeSub, sort]);
+  }, [id, activeSub, sort, products]);
 
   if (!category) {
     return <div className="max-w-[1300px] mx-auto px-4 py-20 text-center text-gray-500">Kategorie nicht gefunden.</div>;

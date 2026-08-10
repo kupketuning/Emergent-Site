@@ -72,3 +72,9 @@ code {
     @apply bg-background text-foreground;
     }
 }
+
+@layer components {
+  .inp {
+    @apply w-full border border-gray-300 rounded-md px-3 py-2.5 text-sm outline-none focus:border-[#e11d1d] focus:ring-1 focus:ring-[#e11d1d] transition-colors;
+  }
+}
