@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Minus, Plus, Trash2, ShoppingCart, ChevronRight } from 'lucide-react';
 import { useCart } from '../context/CartContext';
-import { formatPrice } from '../mock';
+import { formatEuro } from '../mock';
 
 const Cart = () => {
   const { items, updateQty, removeItem, total, clear } = useCart();
@@ -40,14 +40,14 @@ const Cart = () => {
               <div className="flex-1 min-w-0">
                 <Link to={`/product/${item.id}`} className="font-bold text-[#1a1a1a] hover:text-[#e11d1d] transition-colors line-clamp-2">{item.name}</Link>
                 <p className="text-xs text-gray-400 mt-1">Art.-Nr.: {item.id}</p>
-                <p className="text-[#e11d1d] font-semibold mt-1 sm:hidden">{formatPrice(item.price)}</p>
+                <p className="text-[#e11d1d] font-semibold mt-1 sm:hidden">{formatEuro(item.price)}</p>
               </div>
               <div className="flex items-center border border-gray-300 rounded-md overflow-hidden">
                 <button onClick={() => updateQty(item.id, item.qty - 1)} className="w-9 h-10 flex items-center justify-center text-gray-600 hover:bg-gray-100"><Minus className="w-4 h-4" /></button>
                 <span className="w-10 text-center font-semibold text-sm">{item.qty}</span>
                 <button onClick={() => updateQty(item.id, item.qty + 1)} className="w-9 h-10 flex items-center justify-center text-gray-600 hover:bg-gray-100"><Plus className="w-4 h-4" /></button>
               </div>
-              <div className="hidden sm:block w-28 text-right font-bold text-[#1a1a1a]">{formatPrice(item.price * item.qty)}</div>
+              <div className="hidden sm:block w-28 text-right font-bold text-[#1a1a1a]">{formatEuro(item.price * item.qty)}</div>
               <button onClick={() => removeItem(item.id)} aria-label="Entfernen" className="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-[#e11d1d] transition-colors"><Trash2 className="w-5 h-5" /></button>
             </div>
           ))}
@@ -58,10 +58,10 @@ const Cart = () => {
         <div className="border border-gray-200 rounded-lg p-6 h-fit lg:sticky lg:top-40">
           <h2 className="font-bold text-lg text-[#1a1a1a] mb-4">Zusammenfassung</h2>
           <div className="space-y-3 text-sm">
-            <div className="flex justify-between"><span className="text-gray-600">Zwischensumme</span><span className="font-semibold">{formatPrice(total)}</span></div>
-            <div className="flex justify-between"><span className="text-gray-600">Versand</span><span className="font-semibold">{shipping === 0 ? 'Kostenlos' : formatPrice(shipping)}</span></div>
-            {shipping > 0 && <p className="text-xs text-[#e11d1d]">Noch {formatPrice(200 - total)} bis zum kostenlosen Versand!</p>}
-            <div className="border-t border-gray-200 pt-3 flex justify-between text-lg font-bold text-[#1a1a1a]"><span>Gesamt</span><span>{formatPrice(total + shipping)}</span></div>
+            <div className="flex justify-between"><span className="text-gray-600">Zwischensumme</span><span className="font-semibold">{formatEuro(total)}</span></div>
+            <div className="flex justify-between"><span className="text-gray-600">Versand</span><span className="font-semibold">{shipping === 0 ? 'Kostenlos' : formatEuro(shipping)}</span></div>
+            {shipping > 0 && <p className="text-xs text-[#e11d1d]">Noch {formatEuro(200 - total)} bis zum kostenlosen Versand!</p>}
+            <div className="border-t border-gray-200 pt-3 flex justify-between text-lg font-bold text-[#1a1a1a]"><span>Gesamt</span><span>{formatEuro(total + shipping)}</span></div>
             <p className="text-xs text-gray-400">inkl. MwSt.</p>
           </div>
           <button onClick={() => alert('Checkout ist im Demo-Shop noch nicht aktiv.')} className="w-full mt-5 h-12 bg-[#e11d1d] hover:bg-[#b3161c] text-white font-semibold rounded-md transition-colors">Zur Kasse</button>

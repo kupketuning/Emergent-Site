@@ -41,3 +41,10 @@ export const formatPrice = (n) => {
   if (n === null || n === undefined || n === 0) return 'Preis auf Anfrage';
   return n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '\u00a0€';
 };
+
+// Always format as Euro amount (used for cart totals)
+export const formatEuro = (n) =>
+  (Number(n) || 0).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '\u00a0€';
+
+// A product can be bought only if it has a concrete price
+export const isPurchasable = (p) => p && p.price !== null && p.price !== undefined && p.price > 0;

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ChevronRight, Minus, Plus, Check, Truck, ShieldCheck, Heart } from 'lucide-react';
 import { useCart } from '../context/CartContext';
-import { categories, formatPrice } from '../mock';
+import { categories, formatPrice, isPurchasable } from '../mock';
 import { useProducts } from '../context/ProductsContext';
 import ProductCard from '../components/ProductCard';
 
@@ -57,11 +57,12 @@ const ProductDetail = () => {
           </div>
 
           <div className="mb-6">
-            <p className="text-sm text-gray-400">Regulärer Preis:</p>
-            <p className="text-4xl font-bold text-[#1a1a1a]">{formatPrice(product.price)}</p>
-            <p className="text-xs text-gray-400 mt-1">inkl. MwSt. zzgl. Versandkosten</p>
+            <p className="text-sm text-gray-400">{isPurchasable(product) ? 'Regulärer Preis:' : 'Preis:'}</p>
+            <p className="text-4xl font-bold text-[#17191d]">{formatPrice(product.price)}</p>
+            {isPurchasable(product) && <p className="text-xs text-gray-400 mt-1">inkl. MwSt. zzgl. Versandkosten</p>}
           </div>
 
+          {isPurchasable(product) ? (
           <div className="flex items-center gap-4 mb-6">
             <div className="flex items-center border border-gray-300 rounded-md overflow-hidden">
               <button onClick={() => setQty((q) => Math.max(1, q - 1))} className="w-11 h-12 flex items-center justify-center text-gray-600 hover:bg-gray-100 transition-colors"><Minus className="w-4 h-4" /></button>
@@ -73,6 +74,12 @@ const ProductDetail = () => {
             </button>
             <button onClick={() => alert('Wunschliste folgt in Kürze!')} className="w-12 h-12 rounded-md border border-gray-300 flex items-center justify-center text-gray-500 hover:text-[#e11d1d] hover:border-[#e11d1d] transition-colors"><Heart className="w-5 h-5" /></button>
           </div>
+          ) : (
+          <div className="mb-6">
+            <div className="bg-[#fdf2f2] border border-[#f3c6c6] rounded-md p-4 mb-3 text-sm text-[#7a1a1a]">Dieser Artikel wird individuell gefertigt bzw. konfiguriert. Fordert einfach ein unverbindliches Angebot an.</div>
+            <button onClick={() => navigate('/kontakt')} className="w-full h-12 rounded-md font-semibold text-white bg-[#e11d1d] hover:bg-[#b3161c] transition-colors flex items-center justify-center gap-2"><Truck className="w-5 h-5" /> Preis anfragen</button>
+          </div>
+          )}
 
           {added && (
             <button onClick={() => navigate('/cart')} className="text-[#e11d1d] font-semibold text-sm underline mb-6">Zum Warenkorb →</button>

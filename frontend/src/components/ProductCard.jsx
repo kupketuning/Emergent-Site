@@ -1,8 +1,8 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Heart, Check } from 'lucide-react';
+import { Heart, Check, Mail } from 'lucide-react';
 import { useCart } from '../context/CartContext';
-import { formatPrice } from '../mock';
+import { formatPrice, isPurchasable } from '../mock';
 
 const ProductCard = ({ product }) => {
   const { addItem } = useCart();
@@ -48,12 +48,21 @@ const ProductCard = ({ product }) => {
           <p className="text-2xl font-bold text-[#17191d] leading-tight">{formatPrice(product.price)}</p>
         </div>
 
-        <button
-          onClick={handleAdd}
-          className={`mt-3 w-full h-11 rounded-md font-semibold text-white transition-colors flex items-center justify-center gap-2 ${added ? 'bg-[#b3161c]' : 'bg-[#e11d1d] hover:bg-[#b3161c]'}`}
-        >
-          {added ? (<><Check className="w-5 h-5" /> Hinzugefügt</>) : 'In den Warenkorb'}
-        </button>
+        {isPurchasable(product) ? (
+          <button
+            onClick={handleAdd}
+            className={`mt-3 w-full h-11 rounded-md font-semibold text-white transition-colors flex items-center justify-center gap-2 ${added ? 'bg-[#b3161c]' : 'bg-[#e11d1d] hover:bg-[#b3161c]'}`}
+          >
+            {added ? (<><Check className="w-5 h-5" /> Hinzugefügt</>) : 'In den Warenkorb'}
+          </button>
+        ) : (
+          <button
+            onClick={(e) => { e.preventDefault(); alert('Bitte kontaktiert uns für ein Angebot zu diesem Artikel.'); }}
+            className="mt-3 w-full h-11 rounded-md font-semibold text-[#e11d1d] border border-[#e11d1d] hover:bg-[#e11d1d] hover:text-white transition-colors flex items-center justify-center gap-2"
+          >
+            <Mail className="w-5 h-5" /> Preis anfragen
+          </button>
+        )}
       </div>
     </div>
   );

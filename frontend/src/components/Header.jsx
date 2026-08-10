@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Search, Heart, User, ShoppingCart, Phone } from 'lucide-react';
 import { useCart } from '../context/CartContext';
-import { formatPrice } from '../mock';
+import { formatEuro } from '../mock';
 
 const Header = () => {
   const [q, setQ] = useState('');
@@ -63,7 +63,7 @@ const Header = () => {
                 <span className="absolute -top-2 -right-3 bg-[#e11d1d] text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">{count}</span>
               )}
             </div>
-            <span className="font-semibold">{formatPrice(total)}</span>
+            <span className="font-semibold">{formatEuro(total)}</span>
           </Link>
         </div>
       </div>
