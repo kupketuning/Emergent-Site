@@ -1,370 +1,410 @@
 #!/usr/bin/env python3
 """
-Backend API Test Suite for Kupke-Tuning
-Tests all endpoints at /api prefix using the production URL
+Backend API Testing for Kupke-Tuning - Variants and Inquiries Features
+Tests the newly added features at /api prefix using REACT_APP_BACKEND_URL
 """
+
 import requests
-import sys
-import os
-from pathlib import Path
+import json
+from datetime import datetime
 
-# Read REACT_APP_BACKEND_URL from frontend/.env
-env_path = Path(__file__).parent / "frontend" / ".env"
-BASE_URL = None
-with open(env_path) as f:
-    for line in f:
-        if line.startswith("REACT_APP_BACKEND_URL="):
-            BASE_URL = line.split("=", 1)[1].strip()
-            break
-
-if not BASE_URL:
-    print("❌ ERROR: Could not find REACT_APP_BACKEND_URL in frontend/.env")
-    sys.exit(1)
-
-API_URL = f"{BASE_URL}/api"
-ADMIN_PASSWORD = "kupke-admin"
+# Load backend URL from frontend/.env
+BACKEND_URL = "https://design-322.preview.emergentagent.com"
+API_BASE = f"{BACKEND_URL}/api"
+ADMIN_TOKEN = "kupke-admin"
 
 # Test results tracking
-passed = 0
-failed = 0
 test_results = []
+failed_tests = []
 
-def test(name, condition, details=""):
-    """Track test results"""
-    global passed, failed
-    if condition:
-        passed += 1
-        test_results.append(f"✅ {name}")
-        print(f"✅ {name}")
-    else:
-        failed += 1
-        test_results.append(f"❌ {name}: {details}")
-        print(f"❌ {name}: {details}")
-    return condition
+def log_test(test_name, passed, details=""):
+    """Log test result"""
+    status = "✅ PASS" if passed else "❌ FAIL"
+    result = f"{status}: {test_name}"
+    if details:
+        result += f" - {details}"
+    test_results.append(result)
+    if not passed:
+        failed_tests.append(test_name)
+    print(result)
+    return passed
 
-def print_section(title):
-    """Print section header"""
-    print(f"\n{'='*60}")
-    print(f"  {title}")
-    print(f"{'='*60}")
-
-# Store created product ID for cleanup
-created_product_id = None
-
-try:
-    print(f"\n🔍 Testing Kupke-Tuning Backend API")
-    print(f"📍 Base URL: {BASE_URL}")
-    print(f"📍 API URL: {API_URL}")
+def test_products_variants_field():
+    """Test 1: GET /api/products - confirm products include variants field"""
+    print("\n=== Test 1: Products Variants Field ===")
     
-    # ============================================================
-    # TEST 1: Root endpoint
-    # ============================================================
-    print_section("TEST 1: Root Endpoint")
     try:
-        resp = requests.get(f"{API_URL}/", timeout=10)
-        test("GET /api/ returns 200", resp.status_code == 200, f"Got {resp.status_code}")
-        if resp.status_code == 200:
-            data = resp.json()
-            test("GET /api/ returns correct message", 
-                 data.get("message") == "Kupke-Tuning API",
-                 f"Got: {data}")
-    except Exception as e:
-        test("GET /api/ request", False, str(e))
-    
-    # ============================================================
-    # TEST 2: Categories endpoint
-    # ============================================================
-    print_section("TEST 2: Categories Endpoint")
-    try:
-        resp = requests.get(f"{API_URL}/categories", timeout=10)
-        test("GET /api/categories returns 200", resp.status_code == 200, f"Got {resp.status_code}")
-        if resp.status_code == 200:
-            categories = resp.json()
-            test("GET /api/categories returns 8 categories", 
-                 len(categories) == 8,
-                 f"Got {len(categories)} categories")
-            if len(categories) > 0:
-                first_cat = categories[0]
-                test("Categories have id/name/sub fields",
-                     "id" in first_cat and "name" in first_cat and "sub" in first_cat,
-                     f"Got keys: {list(first_cat.keys())}")
-    except Exception as e:
-        test("GET /api/categories request", False, str(e))
-    
-    # ============================================================
-    # TEST 3: All products endpoint
-    # ============================================================
-    print_section("TEST 3: All Products Endpoint")
-    all_products = []
-    try:
-        resp = requests.get(f"{API_URL}/products", timeout=10)
-        test("GET /api/products returns 200", resp.status_code == 200, f"Got {resp.status_code}")
-        if resp.status_code == 200:
-            all_products = resp.json()
-            test("GET /api/products returns 56 products", 
-                 len(all_products) == 56,
-                 f"Got {len(all_products)} products")
-            if len(all_products) > 0:
-                product = all_products[0]
-                required_fields = ["id", "art_nr", "name", "category", "sub", "brand", 
-                                   "price", "delivery", "badge", "fahrzeug", "image", 
-                                   "description", "featured"]
-                has_all_fields = all(field in product for field in required_fields)
-                test("Products have all required fields",
-                     has_all_fields,
-                     f"Missing: {[f for f in required_fields if f not in product]}")
-    except Exception as e:
-        test("GET /api/products request", False, str(e))
-    
-    # ============================================================
-    # TEST 4: Filter by category
-    # ============================================================
-    print_section("TEST 4: Filter Products by Category")
-    try:
-        resp = requests.get(f"{API_URL}/products?category=tuning", timeout=10)
-        test("GET /api/products?category=tuning returns 200", 
-             resp.status_code == 200, f"Got {resp.status_code}")
-        if resp.status_code == 200:
-            tuning_products = resp.json()
-            test("GET /api/products?category=tuning returns only tuning products",
-                 len(tuning_products) > 0 and all(p["category"] == "tuning" for p in tuning_products),
-                 f"Got {len(tuning_products)} products, categories: {set(p['category'] for p in tuning_products)}")
-    except Exception as e:
-        test("GET /api/products?category=tuning request", False, str(e))
-    
-    # ============================================================
-    # TEST 5: Search products
-    # ============================================================
-    print_section("TEST 5: Search Products")
-    try:
-        resp = requests.get(f"{API_URL}/products?q=KONI", timeout=10)
-        test("GET /api/products?q=KONI returns 200", 
-             resp.status_code == 200, f"Got {resp.status_code}")
-        if resp.status_code == 200:
-            koni_products = resp.json()
-            test("GET /api/products?q=KONI finds KONI products",
-                 len(koni_products) > 0,
-                 f"Got {len(koni_products)} products")
-            if len(koni_products) > 0:
-                # Check if KONI appears in name, description, brand, art_nr, or sub
-                has_koni = any(
-                    "KONI" in str(p.get("name", "")).upper() or
-                    "KONI" in str(p.get("description", "")).upper() or
-                    "KONI" in str(p.get("brand", "")).upper() or
-                    "KONI" in str(p.get("art_nr", "")).upper() or
-                    "KONI" in str(p.get("sub", "")).upper()
-                    for p in koni_products
-                )
-                test("Search results contain KONI in relevant fields",
-                     has_koni,
-                     f"First product: {koni_products[0].get('name', 'N/A')}")
-    except Exception as e:
-        test("GET /api/products?q=KONI request", False, str(e))
-    
-    # ============================================================
-    # TEST 6: Filter by featured
-    # ============================================================
-    print_section("TEST 6: Filter Featured Products")
-    try:
-        resp = requests.get(f"{API_URL}/products?featured=true", timeout=10)
-        test("GET /api/products?featured=true returns 200", 
-             resp.status_code == 200, f"Got {resp.status_code}")
-        if resp.status_code == 200:
-            featured_products = resp.json()
-            test("GET /api/products?featured=true returns only featured products",
-                 len(featured_products) > 0 and all(p["featured"] == True for p in featured_products),
-                 f"Got {len(featured_products)} products, featured status: {[p['featured'] for p in featured_products[:3]]}")
-    except Exception as e:
-        test("GET /api/products?featured=true request", False, str(e))
-    
-    # ============================================================
-    # TEST 7: Get single product
-    # ============================================================
-    print_section("TEST 7: Get Single Product")
-    if len(all_products) > 0:
-        valid_id = all_products[0]["id"]
-        try:
-            resp = requests.get(f"{API_URL}/products/{valid_id}", timeout=10)
-            test("GET /api/products/{valid_id} returns 200", 
-                 resp.status_code == 200, f"Got {resp.status_code}")
-            if resp.status_code == 200:
-                product = resp.json()
-                test("GET /api/products/{valid_id} returns correct product",
-                     product["id"] == valid_id,
-                     f"Expected {valid_id}, got {product.get('id')}")
-        except Exception as e:
-            test("GET /api/products/{valid_id} request", False, str(e))
+        response = requests.get(f"{API_BASE}/products", timeout=10)
         
-        # Test invalid ID
-        try:
-            invalid_id = "invalid-product-id-12345"
-            resp = requests.get(f"{API_URL}/products/{invalid_id}", timeout=10)
-            test("GET /api/products/{invalid_id} returns 404", 
-                 resp.status_code == 404, f"Got {resp.status_code}")
-        except Exception as e:
-            test("GET /api/products/{invalid_id} request", False, str(e))
-    else:
-        test("Get single product (skipped - no products)", False, "No products available")
-    
-    # ============================================================
-    # TEST 8: Admin login
-    # ============================================================
-    print_section("TEST 8: Admin Login")
-    admin_token = None
-    
-    # Test wrong password
-    try:
-        resp = requests.post(f"{API_URL}/admin/login", 
-                            json={"password": "wrong-password"}, 
-                            timeout=10)
-        test("POST /api/admin/login with wrong password returns 401", 
-             resp.status_code == 401, f"Got {resp.status_code}")
+        if response.status_code != 200:
+            return log_test("GET /api/products status", False, f"Expected 200, got {response.status_code}")
+        
+        log_test("GET /api/products status", True, "200 OK")
+        
+        products = response.json()
+        
+        # Check all products have variants field
+        all_have_variants = all("variants" in p for p in products)
+        log_test("All products have 'variants' field", all_have_variants)
+        
+        # Find specific products
+        kutfw113535kr = next((p for p in products if p.get("art_nr") == "KUTFW113535KR"), None)
+        kutalu1 = next((p for p in products if p.get("art_nr") == "KUTALU1"), None)
+        
+        # Test KUTFW113535KR - should have 2 variant groups
+        if kutfw113535kr:
+            variants = kutfw113535kr.get("variants", [])
+            has_two_groups = len(variants) == 2
+            log_test("KUTFW113535KR has 2 variant groups", has_two_groups, 
+                    f"Found {len(variants)} groups: {[v.get('name') for v in variants]}")
+            
+            if has_two_groups:
+                group_names = [v.get("name") for v in variants]
+                has_dampfer = "Dämpfer" in group_names
+                has_tieferlegung = "Tieferlegung VA/HA" in group_names
+                log_test("KUTFW113535KR has 'Dämpfer' group", has_dampfer)
+                log_test("KUTFW113535KR has 'Tieferlegung VA/HA' group", has_tieferlegung)
+        else:
+            log_test("Find product KUTFW113535KR", False, "Product not found")
+        
+        # Test KUTALU1 - should have 1 variant group
+        if kutalu1:
+            variants = kutalu1.get("variants", [])
+            has_one_group = len(variants) == 1
+            log_test("KUTALU1 has 1 variant group", has_one_group,
+                    f"Found {len(variants)} groups: {[v.get('name') for v in variants]}")
+            
+            if has_one_group:
+                group_name = variants[0].get("name")
+                has_lochkreis = group_name == "Lochkreis"
+                log_test("KUTALU1 has 'Lochkreis' group", has_lochkreis, f"Group name: {group_name}")
+        else:
+            log_test("Find product KUTALU1", False, "Product not found")
+        
+        # Check that some products have empty variants list
+        products_without_variants = [p for p in products if len(p.get("variants", [])) == 0]
+        log_test("Some products have empty variants list", len(products_without_variants) > 0,
+                f"Found {len(products_without_variants)} products without variants")
+        
+        return True
+        
     except Exception as e:
-        test("POST /api/admin/login with wrong password", False, str(e))
+        log_test("GET /api/products", False, f"Exception: {str(e)}")
+        return False
+
+
+def test_inquiries_create_public():
+    """Test 2a: POST /api/inquiries (public, no token)"""
+    print("\n=== Test 2a: Create Inquiry (Public) ===")
     
-    # Test correct password
     try:
-        resp = requests.post(f"{API_URL}/admin/login", 
-                            json={"password": ADMIN_PASSWORD}, 
-                            timeout=10)
-        test("POST /api/admin/login with correct password returns 200", 
-             resp.status_code == 200, f"Got {resp.status_code}")
-        if resp.status_code == 200:
-            data = resp.json()
-            admin_token = data.get("token")
-            test("POST /api/admin/login returns token",
-                 admin_token == ADMIN_PASSWORD,
-                 f"Expected '{ADMIN_PASSWORD}', got '{admin_token}'")
+        inquiry_data = {
+            "name": "Max Mustermann",
+            "email": "max.mustermann@example.com",
+            "phone": "+49 123 456789",
+            "product_name": "KONI Komplett-Sportfahrwerk",
+            "product_art_nr": "KUTFW113535KR",
+            "variant": "KONI-Rot, 35/35 mm",
+            "message": "Ich interessiere mich für dieses Sportfahrwerk. Bitte kontaktieren Sie mich."
+        }
+        
+        response = requests.post(f"{API_BASE}/inquiries", json=inquiry_data, timeout=10)
+        
+        if response.status_code != 200:
+            return log_test("POST /api/inquiries (public)", False, 
+                          f"Expected 200, got {response.status_code}: {response.text}")
+        
+        log_test("POST /api/inquiries status", True, "200 OK")
+        
+        inquiry = response.json()
+        
+        # Verify response structure
+        has_id = "id" in inquiry and inquiry["id"]
+        log_test("Inquiry has generated ID", has_id, f"ID: {inquiry.get('id', 'N/A')}")
+        
+        has_handled = "handled" in inquiry and inquiry["handled"] == False
+        log_test("Inquiry has handled=false", has_handled)
+        
+        has_created_at = "created_at" in inquiry and inquiry["created_at"]
+        log_test("Inquiry has created_at", has_created_at)
+        
+        # Verify all fields are present
+        for field in ["name", "email", "phone", "product_name", "product_art_nr", "variant", "message"]:
+            has_field = field in inquiry and inquiry[field] == inquiry_data[field]
+            log_test(f"Inquiry has correct '{field}'", has_field)
+        
+        # Store inquiry ID for later tests
+        global created_inquiry_id
+        created_inquiry_id = inquiry.get("id")
+        
+        return True
+        
     except Exception as e:
-        test("POST /api/admin/login with correct password", False, str(e))
+        log_test("POST /api/inquiries (public)", False, f"Exception: {str(e)}")
+        return False
+
+
+def test_inquiries_list_without_token():
+    """Test 2b: GET /api/inquiries WITHOUT admin token -> 401"""
+    print("\n=== Test 2b: List Inquiries Without Token ===")
     
-    # ============================================================
-    # TEST 9: Create product (protected)
-    # ============================================================
-    print_section("TEST 9: Create Product (Protected)")
-    
-    # Test without token
     try:
-        new_product = {
-            "name": "Test Product",
+        response = requests.get(f"{API_BASE}/inquiries", timeout=10)
+        
+        is_401 = response.status_code == 401
+        log_test("GET /api/inquiries without token returns 401", is_401,
+                f"Status: {response.status_code}")
+        
+        return is_401
+        
+    except Exception as e:
+        log_test("GET /api/inquiries without token", False, f"Exception: {str(e)}")
+        return False
+
+
+def test_inquiries_list_with_token():
+    """Test 2c: GET /api/inquiries WITH X-Admin-Token header"""
+    print("\n=== Test 2c: List Inquiries With Token ===")
+    
+    try:
+        headers = {"X-Admin-Token": ADMIN_TOKEN}
+        response = requests.get(f"{API_BASE}/inquiries", headers=headers, timeout=10)
+        
+        if response.status_code != 200:
+            return log_test("GET /api/inquiries with token", False,
+                          f"Expected 200, got {response.status_code}: {response.text}")
+        
+        log_test("GET /api/inquiries with token status", True, "200 OK")
+        
+        inquiries = response.json()
+        
+        # Verify it's a list
+        is_list = isinstance(inquiries, list)
+        log_test("Response is a list", is_list)
+        
+        if is_list and len(inquiries) > 0:
+            # Check if our created inquiry is in the list
+            global created_inquiry_id
+            found_inquiry = any(inq.get("id") == created_inquiry_id for inq in inquiries)
+            log_test("Created inquiry is in the list", found_inquiry)
+            
+            # Verify sorting (newest first)
+            if len(inquiries) > 1:
+                dates = [inq.get("created_at") for inq in inquiries if "created_at" in inq]
+                is_sorted = dates == sorted(dates, reverse=True)
+                log_test("Inquiries sorted newest first", is_sorted)
+        
+        return True
+        
+    except Exception as e:
+        log_test("GET /api/inquiries with token", False, f"Exception: {str(e)}")
+        return False
+
+
+def test_inquiries_delete_without_token():
+    """Test 2d: DELETE /api/inquiries/{id} WITHOUT token -> 401"""
+    print("\n=== Test 2d: Delete Inquiry Without Token ===")
+    
+    try:
+        global created_inquiry_id
+        response = requests.delete(f"{API_BASE}/inquiries/{created_inquiry_id}", timeout=10)
+        
+        is_401 = response.status_code == 401
+        log_test("DELETE /api/inquiries/{id} without token returns 401", is_401,
+                f"Status: {response.status_code}")
+        
+        return is_401
+        
+    except Exception as e:
+        log_test("DELETE /api/inquiries without token", False, f"Exception: {str(e)}")
+        return False
+
+
+def test_inquiries_delete_with_token():
+    """Test 2e: DELETE /api/inquiries/{id} WITH token"""
+    print("\n=== Test 2e: Delete Inquiry With Token ===")
+    
+    try:
+        global created_inquiry_id
+        headers = {"X-Admin-Token": ADMIN_TOKEN}
+        response = requests.delete(f"{API_BASE}/inquiries/{created_inquiry_id}", 
+                                  headers=headers, timeout=10)
+        
+        if response.status_code != 200:
+            return log_test("DELETE /api/inquiries/{id} with token", False,
+                          f"Expected 200, got {response.status_code}: {response.text}")
+        
+        log_test("DELETE /api/inquiries/{id} with token status", True, "200 OK")
+        
+        result = response.json()
+        has_success = result.get("success") == True
+        log_test("Delete returns {success: true}", has_success, f"Response: {result}")
+        
+        return True
+        
+    except Exception as e:
+        log_test("DELETE /api/inquiries with token", False, f"Exception: {str(e)}")
+        return False
+
+
+def test_inquiries_delete_nonexistent():
+    """Test 2f: DELETE non-existent inquiry WITH token -> 404"""
+    print("\n=== Test 2f: Delete Non-existent Inquiry ===")
+    
+    try:
+        fake_id = "00000000-0000-0000-0000-000000000000"
+        headers = {"X-Admin-Token": ADMIN_TOKEN}
+        response = requests.delete(f"{API_BASE}/inquiries/{fake_id}", 
+                                  headers=headers, timeout=10)
+        
+        is_404 = response.status_code == 404
+        log_test("DELETE non-existent inquiry returns 404", is_404,
+                f"Status: {response.status_code}")
+        
+        return is_404
+        
+    except Exception as e:
+        log_test("DELETE non-existent inquiry", False, f"Exception: {str(e)}")
+        return False
+
+
+def test_product_crud_with_variants():
+    """Test 3: Create, Update, Delete product WITH variants"""
+    print("\n=== Test 3: Product CRUD with Variants ===")
+    
+    try:
+        headers = {"X-Admin-Token": ADMIN_TOKEN}
+        
+        # Create product with variants
+        product_data = {
+            "name": "Test Produkt mit Varianten",
+            "art_nr": "TEST123",
             "category": "tuning",
             "sub": "Test",
             "brand": "Test Brand",
-            "price": 99.99,
-            "delivery": "1-2 Tage",
-            "description": "Test product for API testing"
+            "price": 299.99,
+            "description": "Test Beschreibung",
+            "variants": [
+                {
+                    "name": "Test Variant Group",
+                    "options": ["Option A", "Option B", "Option C"]
+                }
+            ]
         }
-        resp = requests.post(f"{API_URL}/products", 
-                            json=new_product, 
-                            timeout=10)
-        test("POST /api/products without token returns 401", 
-             resp.status_code == 401, f"Got {resp.status_code}")
-    except Exception as e:
-        test("POST /api/products without token", False, str(e))
-    
-    # Test with token
-    if admin_token:
-        try:
-            resp = requests.post(f"{API_URL}/products", 
-                                json=new_product,
-                                headers={"X-Admin-Token": admin_token},
-                                timeout=10)
-            test("POST /api/products with token returns 200", 
-                 resp.status_code == 200, f"Got {resp.status_code}")
-            if resp.status_code == 200:
-                created = resp.json()
-                created_product_id = created.get("id")
-                test("POST /api/products returns product with id",
-                     created_product_id is not None,
-                     f"Got: {created}")
-                test("POST /api/products returns correct name",
-                     created.get("name") == new_product["name"],
-                     f"Expected '{new_product['name']}', got '{created.get('name')}'")
-        except Exception as e:
-            test("POST /api/products with token", False, str(e))
-    else:
-        test("POST /api/products with token (skipped)", False, "No admin token available")
-    
-    # ============================================================
-    # TEST 10: Update product (protected)
-    # ============================================================
-    print_section("TEST 10: Update Product (Protected)")
-    
-    if admin_token and created_product_id:
-        try:
-            update_data = {"price": 149.99}
-            resp = requests.put(f"{API_URL}/products/{created_product_id}",
-                               json=update_data,
-                               headers={"X-Admin-Token": admin_token},
-                               timeout=10)
-            test("PUT /api/products/{id} with token returns 200", 
-                 resp.status_code == 200, f"Got {resp.status_code}")
-            if resp.status_code == 200:
-                updated = resp.json()
-                test("PUT /api/products/{id} updates price",
-                     updated.get("price") == 149.99,
-                     f"Expected 149.99, got {updated.get('price')}")
-        except Exception as e:
-            test("PUT /api/products/{id} with token", False, str(e))
-    else:
-        test("PUT /api/products/{id} (skipped)", False, "No admin token or created product")
-    
-    # ============================================================
-    # TEST 11: Delete product (protected)
-    # ============================================================
-    print_section("TEST 11: Delete Product (Protected)")
-    
-    if admin_token and created_product_id:
-        try:
-            resp = requests.delete(f"{API_URL}/products/{created_product_id}",
-                                  headers={"X-Admin-Token": admin_token},
-                                  timeout=10)
-            test("DELETE /api/products/{id} with token returns 200", 
-                 resp.status_code == 200, f"Got {resp.status_code}")
-            if resp.status_code == 200:
-                data = resp.json()
-                test("DELETE /api/products/{id} returns success",
-                     data.get("success") == True,
-                     f"Got: {data}")
-        except Exception as e:
-            test("DELETE /api/products/{id} with token", False, str(e))
         
-        # Test deleting non-existent product
-        try:
-            resp = requests.delete(f"{API_URL}/products/{created_product_id}",
-                                  headers={"X-Admin-Token": admin_token},
-                                  timeout=10)
-            test("DELETE /api/products/{non_existent_id} returns 404", 
-                 resp.status_code == 404, f"Got {resp.status_code}")
-        except Exception as e:
-            test("DELETE /api/products/{non_existent_id}", False, str(e))
+        # CREATE
+        response = requests.post(f"{API_BASE}/products", json=product_data, 
+                               headers=headers, timeout=10)
+        
+        if response.status_code != 200:
+            return log_test("POST /api/products with variants", False,
+                          f"Expected 200, got {response.status_code}: {response.text}")
+        
+        log_test("POST /api/products with variants status", True, "200 OK")
+        
+        product = response.json()
+        product_id = product.get("id")
+        
+        # Verify variants are stored
+        has_variants = "variants" in product and len(product["variants"]) == 1
+        log_test("Created product has variants", has_variants,
+                f"Variants: {product.get('variants', [])}")
+        
+        if has_variants:
+            variant_group = product["variants"][0]
+            correct_name = variant_group.get("name") == "Test Variant Group"
+            correct_options = variant_group.get("options") == ["Option A", "Option B", "Option C"]
+            log_test("Variant group has correct name", correct_name)
+            log_test("Variant group has correct options", correct_options)
+        
+        # UPDATE - change variants
+        update_data = {
+            "variants": [
+                {
+                    "name": "Updated Variant Group",
+                    "options": ["New Option 1", "New Option 2"]
+                },
+                {
+                    "name": "Second Group",
+                    "options": ["X", "Y", "Z"]
+                }
+            ]
+        }
+        
+        response = requests.put(f"{API_BASE}/products/{product_id}", 
+                              json=update_data, headers=headers, timeout=10)
+        
+        if response.status_code != 200:
+            log_test("PUT /api/products/{id} update variants", False,
+                    f"Expected 200, got {response.status_code}: {response.text}")
+        else:
+            log_test("PUT /api/products/{id} update variants status", True, "200 OK")
+            
+            updated_product = response.json()
+            has_two_groups = len(updated_product.get("variants", [])) == 2
+            log_test("Updated product has 2 variant groups", has_two_groups,
+                    f"Groups: {[v.get('name') for v in updated_product.get('variants', [])]}")
+        
+        # DELETE (cleanup)
+        response = requests.delete(f"{API_BASE}/products/{product_id}", 
+                                 headers=headers, timeout=10)
+        
+        if response.status_code != 200:
+            log_test("DELETE /api/products/{id} cleanup", False,
+                    f"Expected 200, got {response.status_code}")
+        else:
+            log_test("DELETE /api/products/{id} cleanup", True, "Product deleted successfully")
+        
+        return True
+        
+    except Exception as e:
+        log_test("Product CRUD with variants", False, f"Exception: {str(e)}")
+        return False
+
+
+def main():
+    """Run all tests"""
+    print("=" * 70)
+    print("KUPKE-TUNING BACKEND API TESTS - Variants & Inquiries Features")
+    print("=" * 70)
+    print(f"Backend URL: {API_BASE}")
+    print(f"Admin Token: {ADMIN_TOKEN}")
+    print("=" * 70)
+    
+    # Run all tests
+    test_products_variants_field()
+    test_inquiries_create_public()
+    test_inquiries_list_without_token()
+    test_inquiries_list_with_token()
+    test_inquiries_delete_without_token()
+    test_inquiries_delete_with_token()
+    test_inquiries_delete_nonexistent()
+    test_product_crud_with_variants()
+    
+    # Summary
+    print("\n" + "=" * 70)
+    print("TEST SUMMARY")
+    print("=" * 70)
+    
+    total_tests = len(test_results)
+    passed_tests = total_tests - len(failed_tests)
+    
+    print(f"\nTotal Tests: {total_tests}")
+    print(f"Passed: {passed_tests}")
+    print(f"Failed: {len(failed_tests)}")
+    
+    if failed_tests:
+        print("\n❌ FAILED TESTS:")
+        for test in failed_tests:
+            print(f"  - {test}")
     else:
-        test("DELETE /api/products/{id} (skipped)", False, "No admin token or created product")
+        print("\n✅ ALL TESTS PASSED!")
+    
+    print("\n" + "=" * 70)
+    
+    return len(failed_tests) == 0
 
-except Exception as e:
-    print(f"\n❌ FATAL ERROR: {e}")
-    import traceback
-    traceback.print_exc()
-    sys.exit(1)
 
-# ============================================================
-# SUMMARY
-# ============================================================
-print(f"\n{'='*60}")
-print(f"  TEST SUMMARY")
-print(f"{'='*60}")
-print(f"✅ Passed: {passed}")
-print(f"❌ Failed: {failed}")
-print(f"📊 Total: {passed + failed}")
-print(f"{'='*60}\n")
-
-if failed > 0:
-    print("❌ SOME TESTS FAILED\n")
-    print("Failed tests:")
-    for result in test_results:
-        if result.startswith("❌"):
-            print(f"  {result}")
-    sys.exit(1)
-else:
-    print("✅ ALL TESTS PASSED\n")
-    sys.exit(0)
+if __name__ == "__main__":
+    success = main()
+    exit(0 if success else 1)

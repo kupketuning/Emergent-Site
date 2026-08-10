@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ChevronRight, Minus, Plus, Check, Truck, ShieldCheck, Heart } from 'lucide-react';
+import { ChevronRight, Minus, Plus, Check, Truck, ShieldCheck, Heart, Mail } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { categories, formatPrice, isPurchasable } from '../mock';
 import { useProducts } from '../context/ProductsContext';
@@ -14,6 +14,8 @@ const ProductDetail = () => {
   const { addItem } = useCart();
   const [qty, setQty] = useState(1);
   const [added, setAdded] = useState(false);
+  const [selected, setSelected] = useState({});
+  const [variantErr, setVariantErr] = useState('');
 
   if (!product) {
     return <div className="max-w-[1300px] mx-auto px-4 py-20 text-center text-gray-500">Produkt nicht gefunden.</div>;
@@ -21,11 +23,31 @@ const ProductDetail = () => {
 
   const category = categories.find((c) => c.id === product.category);
   const related = products.filter((p) => p.category === product.category && p.id !== product.id).slice(0, 4);
+  const variants = product.variants || [];
+
+  const variantSummary = () =>
+    variants.map((g) => `${g.name}: ${selected[g.name]}`).join(', ');
+
+  const allSelected = () => variants.every((g) => selected[g.name]);
 
   const handleAdd = () => {
-    addItem(product, qty);
+    if (!allSelected()) {
+      setVariantErr('Bitte wählt zunächst alle Ausführungen aus.');
+      return;
+    }
+    setVariantErr('');
+    addItem(product, qty, variantSummary());
     setAdded(true);
     setTimeout(() => setAdded(false), 1800);
+  };
+
+  const askForPrice = () => {
+    const q = new URLSearchParams({
+      produkt: product.name,
+      art: product.art_nr || '',
+      variante: allSelected() ? variantSummary() : '',
+    });
+    navigate(`/kontakt?${q.toString()}`);
   };
 
   return (
@@ -62,6 +84,25 @@ const ProductDetail = () => {
             {isPurchasable(product) && <p className="text-xs text-gray-400 mt-1">inkl. MwSt. zzgl. Versandkosten</p>}
           </div>
 
+          {variants.length > 0 && (
+            <div className="mb-6 space-y-4">
+              {variants.map((g) => (
+                <div key={g.name}>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">{g.name} <span className="text-[#e11d1d]">*</span></label>
+                  <select
+                    value={selected[g.name] || ''}
+                    onChange={(e) => { setSelected((s) => ({ ...s, [g.name]: e.target.value })); setVariantErr(''); }}
+                    className="inp"
+                  >
+                    <option value="">Bitte wählen ...</option>
+                    {g.options.map((o) => <option key={o} value={o}>{o}</option>)}
+                  </select>
+                </div>
+              ))}
+              {variantErr && <p className="text-[#e11d1d] text-sm">{variantErr}</p>}
+            </div>
+          )}
+
           {isPurchasable(product) ? (
           <div className="flex items-center gap-4 mb-6">
             <div className="flex items-center border border-gray-300 rounded-md overflow-hidden">
@@ -76,8 +117,8 @@ const ProductDetail = () => {
           </div>
           ) : (
           <div className="mb-6">
-            <div className="bg-[#fdf2f2] border border-[#f3c6c6] rounded-md p-4 mb-3 text-sm text-[#7a1a1a]">Dieser Artikel wird individuell gefertigt bzw. konfiguriert. Fordert einfach ein unverbindliches Angebot an.</div>
-            <button onClick={() => navigate('/kontakt')} className="w-full h-12 rounded-md font-semibold text-white bg-[#e11d1d] hover:bg-[#b3161c] transition-colors flex items-center justify-center gap-2"><Truck className="w-5 h-5" /> Preis anfragen</button>
+            <div className="bg-[#fdf2f2] border border-[#f3c6c6] rounded-md p-4 mb-3 text-sm text-[#7a1a1a]">Dieser Artikel wird individuell gefertigt bzw. konfiguriert. Fordert einfach ein unverbindliches Angebot an{variants.length > 0 ? ' – wählt vorher gern Eure Ausführung' : ''}.</div>
+            <button onClick={askForPrice} className="w-full h-12 rounded-md font-semibold text-white bg-[#e11d1d] hover:bg-[#b3161c] transition-colors flex items-center justify-center gap-2"><Mail className="w-5 h-5" /> Preis anfragen</button>
           </div>
           )}
 

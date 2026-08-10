@@ -33,22 +33,22 @@ const Cart = () => {
         {/* Items */}
         <div className="space-y-4">
           {items.map((item) => (
-            <div key={item.id} className="flex gap-4 border border-gray-200 rounded-lg p-4 items-center">
+            <div key={item.key} className="flex gap-4 border border-gray-200 rounded-lg p-4 items-center">
               <Link to={`/product/${item.id}`} className="w-24 h-24 shrink-0 border border-gray-100 rounded p-2 flex items-center justify-center bg-white">
                 <img src={item.image} alt={item.name} className="max-h-full max-w-full object-contain" />
               </Link>
               <div className="flex-1 min-w-0">
                 <Link to={`/product/${item.id}`} className="font-bold text-[#1a1a1a] hover:text-[#e11d1d] transition-colors line-clamp-2">{item.name}</Link>
-                <p className="text-xs text-gray-400 mt-1">Art.-Nr.: {item.id}</p>
+                {item.variant && <p className="text-xs text-gray-600 mt-1">{item.variant}</p>}
                 <p className="text-[#e11d1d] font-semibold mt-1 sm:hidden">{formatEuro(item.price)}</p>
               </div>
               <div className="flex items-center border border-gray-300 rounded-md overflow-hidden">
-                <button onClick={() => updateQty(item.id, item.qty - 1)} className="w-9 h-10 flex items-center justify-center text-gray-600 hover:bg-gray-100"><Minus className="w-4 h-4" /></button>
+                <button onClick={() => updateQty(item.key, item.qty - 1)} className="w-9 h-10 flex items-center justify-center text-gray-600 hover:bg-gray-100"><Minus className="w-4 h-4" /></button>
                 <span className="w-10 text-center font-semibold text-sm">{item.qty}</span>
-                <button onClick={() => updateQty(item.id, item.qty + 1)} className="w-9 h-10 flex items-center justify-center text-gray-600 hover:bg-gray-100"><Plus className="w-4 h-4" /></button>
+                <button onClick={() => updateQty(item.key, item.qty + 1)} className="w-9 h-10 flex items-center justify-center text-gray-600 hover:bg-gray-100"><Plus className="w-4 h-4" /></button>
               </div>
               <div className="hidden sm:block w-28 text-right font-bold text-[#1a1a1a]">{formatEuro(item.price * item.qty)}</div>
-              <button onClick={() => removeItem(item.id)} aria-label="Entfernen" className="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-[#e11d1d] transition-colors"><Trash2 className="w-5 h-5" /></button>
+              <button onClick={() => removeItem(item.key)} aria-label="Entfernen" className="w-9 h-9 flex items-center justify-center text-gray-400 hover:text-[#e11d1d] transition-colors"><Trash2 className="w-5 h-5" /></button>
             </div>
           ))}
           <button onClick={clear} className="text-sm text-gray-500 hover:text-[#e11d1d] transition-colors">Warenkorb leeren</button>

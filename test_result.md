@@ -249,6 +249,66 @@ backend:
         agent: "testing"
         comment: "Database successfully seeded with 56 products from seed_data.py on startup"
 
+  - task: "Products variants field"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "GET /api/products returns all products with 'variants' field. Verified KUTFW113535KR has 2 variant groups (Dämpfer, Tieferlegung VA/HA) and KUTALU1 has 1 group (Lochkreis). Products without variants have empty list. All 8 tests passed."
+
+  - task: "Create inquiry (public endpoint)"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "POST /api/inquiries (no auth required) successfully creates inquiry with generated id, handled=false, created_at timestamp. All fields (name, email, phone, product_name, product_art_nr, variant, message) stored correctly. 11 tests passed."
+
+  - task: "List inquiries (protected endpoint)"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "GET /api/inquiries returns 401 without X-Admin-Token header, returns 200 with list of inquiries when authenticated. Inquiries sorted newest first (created_at desc). 3 tests passed."
+
+  - task: "Delete inquiry (protected endpoint)"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "DELETE /api/inquiries/{id} returns 401 without token, returns 200 with {success:true} when authenticated. Returns 404 for non-existent inquiry. 4 tests passed."
+
+  - task: "Product CRUD with variants"
+    implemented: true
+    working: true
+    file: "/app/backend/server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "testing"
+        comment: "POST /api/products with variants payload stores and returns variants correctly. PUT /api/products/{id} successfully updates variants field. DELETE cleanup works. 8 tests passed."
+
 frontend:
   - task: "Frontend testing"
     implemented: false
@@ -265,7 +325,7 @@ frontend:
 metadata:
   created_by: "testing_agent"
   version: "1.0"
-  test_sequence: 1
+  test_sequence: 2
   run_ui: false
 
 test_plan:
@@ -277,3 +337,5 @@ test_plan:
 agent_communication:
   - agent: "testing"
     message: "Completed comprehensive backend API testing. All 30 tests passed successfully. Tested: root endpoint, categories, products listing, filtering (category/featured), search, single product retrieval, admin authentication, and all CRUD operations with proper authorization. Database seeding working correctly with 56 products. No issues found."
+  - agent: "testing"
+    message: "Completed testing of newly added Kupke-Tuning features (variants and inquiries). All 34 tests passed successfully. Verified: (1) Products variants field - all products include variants list, KUTFW113535KR has 2 groups (Dämpfer, Tieferlegung VA/HA), KUTALU1 has 1 group (Lochkreis), products without variants have empty list. (2) Inquiries API - public POST creates inquiry with id/handled/created_at, GET requires auth (401 without token), DELETE requires auth and returns 404 for non-existent. (3) Product CRUD with variants - create/update/delete operations handle variants field correctly. No issues found."

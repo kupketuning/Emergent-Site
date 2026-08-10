@@ -9,6 +9,7 @@ import Category from './pages/Category';
 import ProductDetail from './pages/ProductDetail';
 import Cart from './pages/Cart';
 import Search from './pages/Search';
+import Kontakt from './pages/Kontakt';
 import Admin from './pages/Admin';
 
 function ScrollToTop() {
@@ -26,6 +27,7 @@ function ShopRoutes() {
         <Route path="/product/:id" element={<ProductDetail />} />
         <Route path="/cart" element={<Cart />} />
         <Route path="/search" element={<Search />} />
+        <Route path="/kontakt" element={<Kontakt />} />
         <Route path="*" element={<Home />} />
       </Routes>
     </Layout>

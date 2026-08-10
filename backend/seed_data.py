@@ -173,3 +173,46 @@ PRODUCTS = [
     p("KUTMS-4PG", "4-Punkt-Sicherheitsgurt (Hosenträger)", "motorsport", "Sicherheitstechnik", "SANDTLER", None, "1-2 Wochen", IMG["bucketseat"],
       "4-Punkt-Hosenträgergurt für sicheren Halt auf der Rennstrecke. Über SANDTLER beziehbar.", "Trabant 1.1 / 601", None, False),
 ]
+
+
+# ---------------- Varianten (Ausfuehrungen je Produkt) ----------------
+VARIANTS = {
+    "KUTFW113535KR": [
+        {"name": "Dämpfer", "options": ["KONI-Rot", "KONI-Gelb", "KONI-Sport"]},
+        {"name": "Tieferlegung VA/HA", "options": ["35/35 mm", "55/35 mm", "55/55 mm", "75/35 mm", "75/55 mm"]},
+    ],
+    "KUTSF1-R": [
+        {"name": "Dämpfer", "options": ["KONI-Rot", "KONI-Gelb", "KONI-Sport"]},
+        {"name": "Fahrwerkstyp", "options": ["Typ 1 (sportlich)", "Typ 2 (mehr Tieferlegung)", "Typ 3 (komfortabel)"]},
+    ],
+    "KUTTL11HA35": [
+        {"name": "Tieferlegung", "options": ["35 mm", "55 mm", "75 mm"]},
+        {"name": "Achse", "options": ["Vorderachse", "Hinterachse"]},
+    ],
+    "KUTUEB601ST": [
+        {"name": "Material", "options": ["Stahl ST52", "Chromstahl Cromo4", "Aluminium"]},
+        {"name": "Polsterung", "options": ["ohne", "fertig gepolstert"]},
+    ],
+    "KUTUEK601CR": [
+        {"name": "Material", "options": ["Stahl ST52", "Chromstahl Cromo4", "Aluminium"]},
+        {"name": "Strebe", "options": ["Diagonalstrebe", "Kreuzstrebe"]},
+        {"name": "Polsterung", "options": ["ohne", "fertig gepolstert"]},
+    ],
+    "KUTALU1": [
+        {"name": "Lochkreis", "options": ["4/98", "4/100"]},
+    ],
+    "KUTSSF1": [
+        {"name": "Lochkreis", "options": ["4/98", "4/100"]},
+        {"name": "Ausführung", "options": ["ohne Mittenabdeckung", "mit Mittenabdeckung", "verchromt (+50 €)"]},
+    ],
+    "KUTSV49820": [
+        {"name": "Breite pro Achse", "options": ["10 mm", "20 mm", "30 mm", "40 mm", "50 mm", "60 mm"]},
+        {"name": "Lochkreis", "options": ["4/98", "4/100", "4/160"]},
+    ],
+    "KUTBSR20": [
+        {"name": "Scheibengröße", "options": ["239x10", "239x12", "239x20 (innenbelüftet)"]},
+    ],
+}
+
+for _pr in PRODUCTS:
+    _pr["variants"] = VARIANTS.get(_pr["art_nr"], [])

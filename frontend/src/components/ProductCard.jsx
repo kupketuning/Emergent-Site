@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Heart, Check, Mail } from 'lucide-react';
+import { Heart, Check, Mail, Settings2 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { formatPrice, isPurchasable } from '../mock';
 
@@ -48,19 +48,26 @@ const ProductCard = ({ product }) => {
           <p className="text-2xl font-bold text-[#17191d] leading-tight">{formatPrice(product.price)}</p>
         </div>
 
-        {isPurchasable(product) ? (
+        {!isPurchasable(product) ? (
+          <Link
+            to={`/kontakt?produkt=${encodeURIComponent(product.name)}&art=${encodeURIComponent(product.art_nr || '')}`}
+            className="mt-3 w-full h-11 rounded-md font-semibold text-[#e11d1d] border border-[#e11d1d] hover:bg-[#e11d1d] hover:text-white transition-colors flex items-center justify-center gap-2"
+          >
+            <Mail className="w-5 h-5" /> Preis anfragen
+          </Link>
+        ) : (product.variants && product.variants.length > 0) ? (
+          <Link
+            to={`/product/${product.id}`}
+            className="mt-3 w-full h-11 rounded-md font-semibold text-white bg-[#e11d1d] hover:bg-[#b3161c] transition-colors flex items-center justify-center gap-2"
+          >
+            <Settings2 className="w-5 h-5" /> Ausführung wählen
+          </Link>
+        ) : (
           <button
             onClick={handleAdd}
             className={`mt-3 w-full h-11 rounded-md font-semibold text-white transition-colors flex items-center justify-center gap-2 ${added ? 'bg-[#b3161c]' : 'bg-[#e11d1d] hover:bg-[#b3161c]'}`}
           >
             {added ? (<><Check className="w-5 h-5" /> Hinzugefügt</>) : 'In den Warenkorb'}
-          </button>
-        ) : (
-          <button
-            onClick={(e) => { e.preventDefault(); alert('Bitte kontaktiert uns für ein Angebot zu diesem Artikel.'); }}
-            className="mt-3 w-full h-11 rounded-md font-semibold text-[#e11d1d] border border-[#e11d1d] hover:bg-[#e11d1d] hover:text-white transition-colors flex items-center justify-center gap-2"
-          >
-            <Mail className="w-5 h-5" /> Preis anfragen
           </button>
         )}
       </div>

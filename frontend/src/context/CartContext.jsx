@@ -2,7 +2,9 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from '
 
 const CartContext = createContext(null);
 
-const STORAGE_KEY = 'tw_cart_v1';
+const STORAGE_KEY = 'kt_cart_v2';
+
+const makeKey = (id, variant) => `${id}::${variant || ''}`;
 
 export const CartProvider = ({ children }) => {
   const [items, setItems] = useState(() => {
@@ -18,27 +20,32 @@ export const CartProvider = ({ children }) => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
   }, [items]);
 
-  const addItem = (product, qty = 1) => {
+  // variant is an optional human-readable string, e.g. "Dämpfer: KONI-Rot, Achse: Vorderachse"
+  const addItem = (product, qty = 1, variant = '') => {
+    const key = makeKey(product.id, variant);
     setItems((prev) => {
-      const existing = prev.find((i) => i.id === product.id);
+      const existing = prev.find((i) => i.key === key);
       if (existing) {
-        return prev.map((i) => (i.id === product.id ? { ...i, qty: i.qty + qty } : i));
+        return prev.map((i) => (i.key === key ? { ...i, qty: i.qty + qty } : i));
       }
-      return [...prev, { id: product.id, name: product.name, price: product.price, image: product.image, qty }];
+      return [
+        ...prev,
+        { key, id: product.id, name: product.name, price: product.price, image: product.image, variant, qty },
+      ];
     });
   };
 
-  const removeItem = (id) => setItems((prev) => prev.filter((i) => i.id !== id));
+  const removeItem = (key) => setItems((prev) => prev.filter((i) => i.key !== key));
 
-  const updateQty = (id, qty) => {
-    if (qty <= 0) return removeItem(id);
-    setItems((prev) => prev.map((i) => (i.id === id ? { ...i, qty } : i)));
+  const updateQty = (key, qty) => {
+    if (qty <= 0) return removeItem(key);
+    setItems((prev) => prev.map((i) => (i.key === key ? { ...i, qty } : i)));
   };
 
   const clear = () => setItems([]);
 
   const count = useMemo(() => items.reduce((s, i) => s + i.qty, 0), [items]);
-  const total = useMemo(() => items.reduce((s, i) => s + i.qty * i.price, 0), [items]);
+  const total = useMemo(() => items.reduce((s, i) => s + i.qty * (i.price || 0), 0), [items]);
 
   const value = { items, addItem, removeItem, updateQty, clear, count, total };
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

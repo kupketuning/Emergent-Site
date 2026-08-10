@@ -20,6 +20,9 @@ export const api = {
   createProduct: async (data) => (await client.post('/products', data, authHeaders())).data,
   updateProduct: async (id, data) => (await client.put(`/products/${id}`, data, authHeaders())).data,
   deleteProduct: async (id) => (await client.delete(`/products/${id}`, authHeaders())).data,
+  createInquiry: async (data) => (await client.post('/inquiries', data)).data,
+  getInquiries: async () => (await client.get('/inquiries', authHeaders())).data,
+  deleteInquiry: async (id) => (await client.delete(`/inquiries/${id}`, authHeaders())).data,
 };
 
 export default api;

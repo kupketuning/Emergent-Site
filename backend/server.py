@@ -40,6 +40,7 @@ class Product(BaseModel):
     image: str = ""
     description: str = ""
     featured: bool = False
+    variants: List[dict] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
@@ -56,6 +57,7 @@ class ProductCreate(BaseModel):
     image: str = ""
     description: str = ""
     featured: bool = False
+    variants: List[dict] = Field(default_factory=list)
 
 
 class ProductUpdate(BaseModel):
@@ -71,6 +73,30 @@ class ProductUpdate(BaseModel):
     image: Optional[str] = None
     description: Optional[str] = None
     featured: Optional[bool] = None
+    variants: Optional[List[dict]] = None
+
+
+class Inquiry(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    email: str
+    phone: str = ""
+    product_name: str = ""
+    product_art_nr: str = ""
+    variant: str = ""
+    message: str
+    handled: bool = False
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class InquiryCreate(BaseModel):
+    name: str
+    email: str
+    phone: str = ""
+    product_name: str = ""
+    product_art_nr: str = ""
+    variant: str = ""
+    message: str
 
 
 class LoginInput(BaseModel):
@@ -163,6 +189,29 @@ async def delete_product(product_id: str, x_admin_token: Optional[str] = Header(
     res = await db.products.delete_one({"id": product_id})
     if res.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Produkt nicht gefunden")
+    return {"success": True}
+
+
+@api_router.post("/inquiries", response_model=Inquiry)
+async def create_inquiry(data: InquiryCreate):
+    inquiry = Inquiry(**data.dict())
+    await db.inquiries.insert_one(inquiry.dict())
+    return inquiry
+
+
+@api_router.get("/inquiries", response_model=List[Inquiry])
+async def list_inquiries(x_admin_token: Optional[str] = Header(None)):
+    _check_admin(x_admin_token)
+    docs = await db.inquiries.find().sort("created_at", -1).to_list(1000)
+    return [Inquiry(**_clean(d)) for d in docs]
+
+
+@api_router.delete("/inquiries/{inquiry_id}")
+async def delete_inquiry(inquiry_id: str, x_admin_token: Optional[str] = Header(None)):
+    _check_admin(x_admin_token)
+    res = await db.inquiries.delete_one({"id": inquiry_id})
+    if res.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Anfrage nicht gefunden")
     return {"success": True}
 
 
