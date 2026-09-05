@@ -16,6 +16,7 @@ BUCKET = 'product-images'
 VMAP = {'TRABANT': 'TR', 'WARTBURG': 'WA', 'B1000': 'B1', 'VW': 'VW', 'OPEL': 'OP'}
 TMAP = {'ORIGINAL': 'O', 'TUNING': 'T', 'RENNSPORT': 'R'}
 AMAP = {'MOTOR': 'MO', 'BREMSE': 'BR', 'FAHRWERK': 'FW', 'ABGAS': 'AB', 'ELEKTRIK': 'EL', 'KAROSSERIE': 'KA'}
+SPECIAL_PREFIX = {'NORMTEIL': 'NT', 'ABVERKAUF': 'AV'}
 
 _pool = None
 
@@ -51,6 +52,21 @@ async def generate_sku(conn, vehicle, product_type, assembly_group, is_set):
         except ValueError:
             continue
     return f"{base}-{max_n + 1:03d}"
+
+
+async def generate_special_sku(conn, special_category):
+    prefix = SPECIAL_PREFIX[special_category]
+    rows = await conn.fetch("select sku from products where sku like $1", prefix + "-%")
+    max_n = 0
+    for r in rows:
+        parts = r['sku'].split('-')
+        if len(parts) != 2:
+            continue
+        try:
+            max_n = max(max_n, int(parts[1]))
+        except ValueError:
+            continue
+    return f"{prefix}-{max_n + 1:03d}"
 
 
 def ensure_bucket(bucket=BUCKET):

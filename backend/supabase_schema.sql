@@ -41,6 +41,21 @@ create table if not exists products (
   updated_at timestamptz default now()
 );
 
+-- Erweiterung: Fahrzeug-Typ (nur Trabant) und fahrzeugunabhängige Sonderkategorien
+alter table products add column if not exists vehicle_model text;
+alter table products add column if not exists special_category text;
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'products_vehicle_model_check') then
+    alter table products add constraint products_vehicle_model_check
+      check (vehicle_model is null or vehicle_model in ('P601','1.1'));
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'products_special_category_check') then
+    alter table products add constraint products_special_category_check
+      check (special_category is null or special_category in ('NORMTEIL','ABVERKAUF'));
+  end if;
+end $$;
+
 -- ============================================================
 -- 3. CUSTOMERS
 -- ============================================================

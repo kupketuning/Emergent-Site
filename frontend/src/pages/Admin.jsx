@@ -2,12 +2,12 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Lock, LogOut, Plus, Pencil, Trash2, X, Save, ArrowLeft, Package, Inbox, Mail, ShoppingBag, AlertTriangle, Upload, Loader2 } from 'lucide-react';
 import api, { getToken, setToken, clearToken } from '../api';
-import { VEHICLE_OPTIONS, TYPE_OPTIONS, ASSEMBLY_OPTIONS, formatEuro } from '../mock';
+import { VEHICLE_OPTIONS, TYPE_OPTIONS, ASSEMBLY_OPTIONS, MODEL_OPTIONS, SPECIAL_CATEGORY_OPTIONS, formatEuro } from '../mock';
 import Logo from '../components/Logo';
 
 const emptyForm = {
-  name: '', description: '', vehicle: 'TRABANT', product_type: 'TUNING', assembly_group: 'MOTOR',
-  is_set: false, price_net: '', tax_rate: '19', stock_quantity: '0', stock_min_alert: '5',
+  name: '', description: '', vehicle: 'TRABANT', vehicle_model: '', product_type: 'TUNING', assembly_group: 'MOTOR',
+  special_category: '', is_set: false, price_net: '', tax_rate: '19', stock_quantity: '0', stock_min_alert: '5',
   weight_grams: '0', sort_order: '100', is_active: true, dekra_certified: false, youtube_url: '', images: [],
 };
 
@@ -58,12 +58,15 @@ const Admin = () => {
     let active = true;
     (async () => {
       try {
-        const res = await api.nextSku({ vehicle: form.vehicle, product_type: form.product_type, assembly_group: form.assembly_group, is_set: form.is_set });
+        const params = form.special_category
+          ? { special_category: form.special_category }
+          : { vehicle: form.vehicle, product_type: form.product_type, assembly_group: form.assembly_group, is_set: form.is_set };
+        const res = await api.nextSku(params);
         if (active) setSkuPreview(res.sku);
       } catch { if (active) setSkuPreview(''); }
     })();
     return () => { active = false; };
-  }, [form?.vehicle, form?.product_type, form?.assembly_group, form?.is_set, editingId, form]);
+  }, [form?.vehicle, form?.product_type, form?.assembly_group, form?.is_set, form?.special_category, editingId, form]);
 
   const login = async (e) => {
     e.preventDefault();
@@ -77,7 +80,8 @@ const Admin = () => {
   const openEdit = (p) => {
     setForm({
       name: p.name || '', description: p.description || '', vehicle: p.vehicle || 'TRABANT',
-      product_type: p.product_type || 'TUNING', assembly_group: p.assembly_group || 'MOTOR',
+      vehicle_model: p.vehicle_model || '', product_type: p.product_type || 'TUNING', assembly_group: p.assembly_group || 'MOTOR',
+      special_category: p.special_category || '',
       is_set: !!p.is_set, price_net: p.price_net == null ? '' : String(p.price_net),
       tax_rate: p.tax_rate == null ? '19' : String(p.tax_rate), stock_quantity: String(p.stock_quantity ?? 0),
       stock_min_alert: String(p.stock_min_alert ?? 5), weight_grams: String(p.weight_grams ?? 0),
@@ -104,9 +108,15 @@ const Admin = () => {
   const save = async (e) => {
     e.preventDefault();
     setSaving(true); setMsg('');
+    const isSpecial = !!form.special_category;
     const payload = {
-      name: form.name, description: form.description, vehicle: form.vehicle,
-      product_type: form.product_type, assembly_group: form.assembly_group, is_set: form.is_set,
+      name: form.name, description: form.description,
+      vehicle: isSpecial ? null : form.vehicle,
+      vehicle_model: (!isSpecial && form.vehicle === 'TRABANT' && form.vehicle_model) ? form.vehicle_model : null,
+      product_type: isSpecial ? null : form.product_type,
+      assembly_group: isSpecial ? null : form.assembly_group,
+      special_category: form.special_category || null,
+      is_set: form.is_set,
       price_net: form.price_net === '' ? 0 : form.price_net, tax_rate: form.tax_rate === '' ? 19 : form.tax_rate,
       stock_quantity: form.stock_quantity, stock_min_alert: form.stock_min_alert,
       weight_grams: form.weight_grams, sort_order: form.sort_order, is_active: form.is_active,
@@ -323,17 +333,34 @@ const Admin = () => {
             <div className="space-y-4">
               <Field label="Name"><input required value={form.name} onChange={(e) => set('name', e.target.value)} className="inp" data-testid="pf-name" /></Field>
 
-              <div className="grid grid-cols-3 gap-3">
-                <Field label="Fahrzeug">
-                  <select value={form.vehicle} onChange={(e) => set('vehicle', e.target.value)} className="inp" data-testid="pf-vehicle">{VEHICLE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select>
-                </Field>
-                <Field label="Typ">
-                  <select value={form.product_type} onChange={(e) => set('product_type', e.target.value)} className="inp" data-testid="pf-type">{TYPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select>
-                </Field>
-                <Field label="Baugruppe">
-                  <select value={form.assembly_group} onChange={(e) => set('assembly_group', e.target.value)} className="inp" data-testid="pf-assembly">{ASSEMBLY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select>
-                </Field>
-              </div>
+              <Field label="Sonderkategorie">
+                <select value={form.special_category} onChange={(e) => set('special_category', e.target.value)} className="inp" data-testid="pf-special-category">
+                  {SPECIAL_CATEGORY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </Field>
+
+              {!form.special_category && (
+                <>
+                  <div className="grid grid-cols-3 gap-3">
+                    <Field label="Fahrzeug">
+                      <select value={form.vehicle} onChange={(e) => set('vehicle', e.target.value)} className="inp" data-testid="pf-vehicle">{VEHICLE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select>
+                    </Field>
+                    <Field label="Typ">
+                      <select value={form.product_type} onChange={(e) => set('product_type', e.target.value)} className="inp" data-testid="pf-type">{TYPE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select>
+                    </Field>
+                    <Field label="Baugruppe">
+                      <select value={form.assembly_group} onChange={(e) => set('assembly_group', e.target.value)} className="inp" data-testid="pf-assembly">{ASSEMBLY_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</select>
+                    </Field>
+                  </div>
+                  {form.vehicle === 'TRABANT' && (
+                    <Field label="Trabant-Typ (optional)">
+                      <select value={form.vehicle_model} onChange={(e) => set('vehicle_model', e.target.value)} className="inp" data-testid="pf-vehicle-model">
+                        {MODEL_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                      </select>
+                    </Field>
+                  )}
+                </>
+              )}
 
               <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.is_set} onChange={(e) => set('is_set', e.target.checked)} /> Set / Komplettbausatz</label>
 

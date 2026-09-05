@@ -23,6 +23,15 @@ export const ASSEMBLIES = [
   { slug: 'karosserie', code: 'KAROSSERIE', name: 'Karosserie' },
 ];
 
+// Fahrzeug-Typen (Zwischenebene) — aktuell nur für Trabant gepflegt
+export const MODELS = {
+  TRABANT: [
+    { slug: 'p601', code: 'P601', name: 'P601' },
+    { slug: '1-1', code: '1.1', name: '1.1' },
+  ],
+};
+
 export const vehicleBySlug = (s) => VEHICLES.find((v) => v.slug === s);
 export const typeBySlug = (s) => TYPES.find((t) => t.slug === s);
 export const assemblyBySlug = (s) => ASSEMBLIES.find((a) => a.slug === s);
+export const modelBySlug = (vehicleCode, s) => (MODELS[vehicleCode] || []).find((m) => m.slug === s);

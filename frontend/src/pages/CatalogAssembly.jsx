@@ -1,18 +1,22 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { ChevronRight } from 'lucide-react';
 import { useProducts } from '../context/ProductsContext';
-import { vehicleBySlug, typeBySlug, assemblyBySlug } from '../lib/catalog';
+import { vehicleBySlug, typeBySlug, assemblyBySlug, MODELS } from '../lib/catalog';
 import ProductCard from '../components/ProductCard';
 import Seo from '../components/Seo';
 import api from '../api';
 
 const CatalogAssembly = () => {
   const { vehicle, type, assembly } = useParams();
+  const [searchParams] = useSearchParams();
+  const modellSlug = searchParams.get('modell') || '';
   const { products, loading } = useProducts();
   const v = vehicleBySlug(vehicle);
   const t = typeBySlug(type);
   const a = assemblyBySlug(assembly);
+  const selectedModel = v ? (MODELS[v.code] || []).find((m) => m.slug === modellSlug) : null;
+  const modelQuery = modellSlug ? `?modell=${modellSlug}` : '';
   const [drawing, setDrawing] = useState(null);
 
   useEffect(() => {
@@ -26,13 +30,14 @@ const CatalogAssembly = () => {
 
   const list = useMemo(() => {
     if (!v || !t || !a) return [];
-    const l = products.filter((p) => p.vehicle_code === v.code && p.type_code === t.code && p.assembly_code === a.code);
+    const l = products.filter((p) => p.vehicle_code === v.code && p.type_code === t.code && p.assembly_code === a.code
+      && (!selectedModel || !p.vehicle_model || p.vehicle_model === selectedModel.code));
     return [...l].sort((x, y) => {
       if (!!y.is_set !== !!x.is_set) return (y.is_set ? 1 : 0) - (x.is_set ? 1 : 0);
       if ((x.sort_order || 100) !== (y.sort_order || 100)) return (x.sort_order || 100) - (y.sort_order || 100);
       return x.name.localeCompare(y.name);
     });
-  }, [v, t, a, products]);
+  }, [v, t, a, products, selectedModel]);
 
   if (!v || !t || !a) return <div className="max-w-[1300px] mx-auto px-4 py-20 text-center text-gray-500">Seite nicht gefunden.</div>;
 
@@ -42,14 +47,14 @@ const CatalogAssembly = () => {
       <div className="flex items-center flex-wrap gap-1.5 text-sm text-gray-500 mb-6">
         <Link to="/" className="hover:text-[#E63946]">Startseite</Link>
         <ChevronRight className="w-4 h-4" />
-        <Link to={`/katalog/${v.slug}`} className="hover:text-[#E63946]">{v.name}</Link>
+        <Link to={`/katalog/${v.slug}${modelQuery}`} className="hover:text-[#E63946]">{v.name}{selectedModel ? ` ${selectedModel.name}` : ''}</Link>
         <ChevronRight className="w-4 h-4" />
-        <Link to={`/katalog/${v.slug}/${t.slug}`} className="hover:text-[#E63946]">{t.name}</Link>
+        <Link to={`/katalog/${v.slug}/${t.slug}${modelQuery}`} className="hover:text-[#E63946]">{t.name}</Link>
         <ChevronRight className="w-4 h-4" />
         <span className="text-[#1a1a1a] font-semibold">{a.name}</span>
       </div>
 
-      <h1 className="font-logo text-3xl font-bold text-[#1a1a1a] mb-2">{v.name} / {t.name} / {a.name}</h1>
+      <h1 className="font-logo text-3xl font-bold text-[#1a1a1a] mb-2">{v.name}{selectedModel ? ` ${selectedModel.name}` : ''} / {t.name} / {a.name}</h1>
       <p className="text-gray-500 mb-6">{list.length} Artikel gefunden</p>
 
       {drawing && (

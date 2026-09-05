@@ -38,6 +38,16 @@ export const ASSEMBLY_OPTIONS = [
   { value: 'KAROSSERIE', label: 'Karosserie & Sicherheit' },
   { value: 'ELEKTRIK', label: 'Elektrik' },
 ];
+export const MODEL_OPTIONS = [
+  { value: '', label: '– kein spezifischer Typ –' },
+  { value: 'P601', label: 'P601' },
+  { value: '1.1', label: '1.1' },
+];
+export const SPECIAL_CATEGORY_OPTIONS = [
+  { value: '', label: 'Standard-Katalog (Fahrzeug / Typ / Baugruppe)' },
+  { value: 'NORMTEIL', label: 'Normteil (ohne Fahrzeugzuordnung)' },
+  { value: 'ABVERKAUF', label: 'Abverkauf / Einzelstück' },
+];
 
 const VEHICLE_LABELS = { TRABANT: 'Trabant', WARTBURG: 'Wartburg', B1000: 'Barkas B1000', VW: 'VW', OPEL: 'Opel' };
 const TYPE_LABELS = { ORIGINAL: 'Original', TUNING: 'Tuning', RENNSPORT: 'Rennsport' };
@@ -64,6 +74,8 @@ export const adaptProduct = (p) => {
     image: (p.images && p.images[0]) || FALLBACK_IMG,
     images: p.images || [],
     fahrzeug: VEHICLE_LABELS[p.vehicle] || p.vehicle || '',
+    vehicle_model: p.vehicle_model || '',
+    special_category: p.special_category || '',
     badge: p.product_type === 'RENNSPORT' ? 'Rennsport' : (p.is_set ? 'Komplettset' : (p.product_type === 'TUNING' ? 'Tuning' : null)),
     delivery: '1-2 Tage',
     variants: [],

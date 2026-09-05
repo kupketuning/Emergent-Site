@@ -348,3 +348,67 @@ class TestUpload:
         # watermark applied -> pixels are no longer uniform solid colour
         colors = out.convert("RGB").getcolors(maxcolors=100000)
         assert colors is not None and len(colors) > 1, "image appears unmodified (no watermark)"
+
+
+
+# ---------------- Special categories (Normteil / Abverkauf) + vehicle_model ----------------
+class TestSpecialCategories:
+    created = []
+
+    def test_next_sku_normteil(self, client):
+        r = client.get(f"{BASE_URL}/api/sb/next-sku", headers=HEADERS_ADMIN,
+                       params={"special_category": "NORMTEIL"}, timeout=30)
+        assert r.status_code == 200, r.text
+        assert re.match(r"^NT-\d{3}$", r.json()["sku"]), r.json()
+
+    def test_next_sku_abverkauf(self, client):
+        r = client.get(f"{BASE_URL}/api/sb/next-sku", headers=HEADERS_ADMIN,
+                       params={"special_category": "ABVERKAUF"}, timeout=30)
+        assert r.status_code == 200, r.text
+        assert re.match(r"^AB-\d{3}$", r.json()["sku"]), r.json()
+
+    def test_create_normteil_and_filter(self, client):
+        payload = {"name": "TEST_Normteil Schraube M8", "special_category": "NORMTEIL",
+                   "vehicle": None, "product_type": None, "assembly_group": None,
+                   "price_net": 0.5, "tax_rate": 19, "stock_quantity": 100, "is_active": True}
+        r = client.post(f"{BASE_URL}/api/sb/products", headers=HEADERS_ADMIN, json=payload, timeout=60)
+        assert r.status_code == 200, r.text
+        prod = r.json()
+        TestSpecialCategories.created.append(prod["id"])
+        assert re.match(r"^NT-\d{3}$", prod["sku"]), prod["sku"]
+        assert prod["special_category"] == "NORMTEIL"
+
+        # filter by special_category
+        f = client.get(f"{BASE_URL}/api/sb/products",
+                       params={"special_category": "NORMTEIL"}, timeout=60)
+        assert f.status_code == 200
+        assert any(p["id"] == prod["id"] for p in f.json())
+        assert all(p.get("special_category") == "NORMTEIL" for p in f.json())
+
+    def test_create_abverkauf(self, client):
+        payload = {"name": "TEST_Abverkauf Deko", "special_category": "ABVERKAUF",
+                   "price_net": 5, "tax_rate": 19, "stock_quantity": 1, "is_active": True}
+        r = client.post(f"{BASE_URL}/api/sb/products", headers=HEADERS_ADMIN, json=payload, timeout=60)
+        assert r.status_code == 200, r.text
+        prod = r.json()
+        TestSpecialCategories.created.append(prod["id"])
+        assert re.match(r"^AB-\d{3}$", prod["sku"]), prod["sku"]
+
+    def test_create_trabant_with_vehicle_model(self, client):
+        payload = {"name": "TEST_Trabant P601 Motorteil", "vehicle": "TRABANT", "vehicle_model": "P601",
+                   "product_type": "TUNING", "assembly_group": "MOTOR",
+                   "price_net": 20, "tax_rate": 19, "stock_quantity": 1, "is_active": True}
+        r = client.post(f"{BASE_URL}/api/sb/products", headers=HEADERS_ADMIN, json=payload, timeout=60)
+        assert r.status_code == 200, r.text
+        prod = r.json()
+        TestSpecialCategories.created.append(prod["id"])
+        assert prod.get("vehicle_model") == "P601"
+
+        g = client.get(f"{BASE_URL}/api/sb/products/{prod['id']}", timeout=30)
+        assert g.json().get("vehicle_model") == "P601"
+
+    @pytest.fixture(scope="class", autouse=True)
+    def cleanup(self, client):
+        yield
+        for pid in list(TestSpecialCategories.created):
+            client.delete(f"{BASE_URL}/api/sb/products/{pid}", headers=HEADERS_ADMIN, timeout=60)

@@ -1,22 +1,28 @@
 import React, { useMemo } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { ChevronRight, Cog, Disc, Waypoints, Wind, Zap, Car } from 'lucide-react';
 import { useProducts } from '../context/ProductsContext';
-import { vehicleBySlug, typeBySlug, ASSEMBLIES } from '../lib/catalog';
+import { vehicleBySlug, typeBySlug, ASSEMBLIES, MODELS } from '../lib/catalog';
 import Seo from '../components/Seo';
 
 const ICON = { MOTOR: Cog, BREMSE: Disc, FAHRWERK: Waypoints, ABGAS: Wind, ELEKTRIK: Zap, KAROSSERIE: Car };
 
 const CatalogType = () => {
   const { vehicle, type } = useParams();
+  const [searchParams] = useSearchParams();
+  const modellSlug = searchParams.get('modell') || '';
   const { products, loading } = useProducts();
   const v = vehicleBySlug(vehicle);
   const t = typeBySlug(type);
+  const selectedModel = v ? (MODELS[v.code] || []).find((m) => m.slug === modellSlug) : null;
+  const modelQuery = modellSlug ? `?modell=${modellSlug}` : '';
+
+  const matches = (p) => v && t && p.vehicle_code === v.code && p.type_code === t.code && (!selectedModel || !p.vehicle_model || p.vehicle_model === selectedModel.code);
 
   const available = useMemo(() => {
     if (!v || !t) return [];
-    return ASSEMBLIES.filter((a) => products.some((p) => p.vehicle_code === v.code && p.type_code === t.code && p.assembly_code === a.code));
-  }, [v, t, products]);
+    return ASSEMBLIES.filter((a) => products.some((p) => matches(p) && p.assembly_code === a.code));
+  }, [v, t, products, selectedModel]);
 
   if (!v || !t) return <div className="max-w-[1300px] mx-auto px-4 py-20 text-center text-gray-500">Seite nicht gefunden.</div>;
 
@@ -26,12 +32,12 @@ const CatalogType = () => {
       <div className="flex items-center flex-wrap gap-1.5 text-sm text-gray-500 mb-6">
         <Link to="/" className="hover:text-[#E63946]">Startseite</Link>
         <ChevronRight className="w-4 h-4" />
-        <Link to={`/katalog/${v.slug}`} className="hover:text-[#E63946]">{v.name}</Link>
+        <Link to={`/katalog/${v.slug}${modelQuery}`} className="hover:text-[#E63946]">{v.name}{selectedModel ? ` ${selectedModel.name}` : ''}</Link>
         <ChevronRight className="w-4 h-4" />
         <span className="text-[#1a1a1a] font-semibold">{t.name}</span>
       </div>
 
-      <h1 className="font-logo text-3xl md:text-4xl font-bold text-[#1a1a1a] mb-2 uppercase">{v.name} — {t.name}teile</h1>
+      <h1 className="font-logo text-3xl md:text-4xl font-bold text-[#1a1a1a] mb-2 uppercase">{v.name}{selectedModel ? ` ${selectedModel.name}` : ''} — {t.name}teile</h1>
       <p className="text-gray-500 mb-10">Wähle eine Baugruppe.</p>
 
       {loading && available.length === 0 ? (
@@ -42,9 +48,9 @@ const CatalogType = () => {
         <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
           {available.map((a) => {
             const Icon = ICON[a.code] || Cog;
-            const count = products.filter((p) => p.vehicle_code === v.code && p.type_code === t.code && p.assembly_code === a.code).length;
+            const count = products.filter((p) => matches(p) && p.assembly_code === a.code).length;
             return (
-              <Link key={a.slug} to={`/katalog/${v.slug}/${t.slug}/${a.slug}`} data-testid={`assembly-tile-${a.slug}`}
+              <Link key={a.slug} to={`/katalog/${v.slug}/${t.slug}/${a.slug}${modelQuery}`} data-testid={`assembly-tile-${a.slug}`}
                 className="group border border-gray-200 rounded-xl p-6 text-center hover:border-[#E63946] hover:shadow-lg transition-all flex flex-col items-center">
                 <span className="w-14 h-14 rounded-full bg-[#17191d] flex items-center justify-center mb-3 group-hover:bg-[#E63946] transition-colors">
                   <Icon className="w-7 h-7 text-white" strokeWidth={1.8} />

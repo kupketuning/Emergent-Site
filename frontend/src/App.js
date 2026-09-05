@@ -17,6 +17,7 @@ import Success from './pages/Success';
 import Search from './pages/Search';
 import Kontakt from './pages/Kontakt';
 import Team from './pages/Team';
+import SpecialCategory from './pages/SpecialCategory';
 import StaticPage from './pages/StaticPage';
 import Admin from './pages/Admin';
 
@@ -44,6 +45,14 @@ function ShopRoutes() {
         <Route path="/search" element={<Search />} />
         <Route path="/kontakt" element={<Kontakt />} />
         <Route path="/team" element={<Team />} />
+        <Route
+          path="/normteile"
+          element={<SpecialCategory category="NORMTEIL" title="Normteile" description="Schrauben, Muttern, Splinte & Co. – ohne Fahrzeugzuordnung, direkt aus unserem Lager." path="/normteile" />}
+        />
+        <Route
+          path="/abverkauf"
+          element={<SpecialCategory category="ABVERKAUF" title="Abverkauf & Einzelstücke" description="DDR-Teile, Deko-Artikel und Sonderposten zum Stöbern – nur solange der Vorrat reicht." path="/abverkauf" />}
+        />
         <Route path="/impressum" element={<StaticPage slug="impressum" />} />
         <Route path="/agb" element={<StaticPage slug="agb" />} />
         <Route path="/widerruf" element={<StaticPage slug="widerruf" />} />

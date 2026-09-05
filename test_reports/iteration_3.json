@@ -1,0 +1,22 @@
+{
+  "summary": "Full backend + frontend regression for Kupke-Tuning iteration_3 (Logo-Fix, SEO Meta-Dedup, Trabant Typ-Auswahl, Normteile/Abverkauf, Admin special_category + vehicle_model). Backend: 34 passed / 1 skipped (orders-empty skip). 5 neue Tests für special-SKU + Filter + Trabant-vehicle_model hinzugefügt, alle grün. Frontend: 1) Logo enthält NUR 'KUPKE' (kein 'Tuning'-Wort mehr, has_tuning=false), 2) Meta-Tags jetzt jeweils 1x (vorher 2x/12 Duplikate) - SEO dedup vollständig gefixt, 3) /katalog/trabant zeigt korrekt 'TRABANT — TYP WÄHLEN' mit model-tile-p601 + model-tile-1-1, Klick navigiert zu ?modell=p601 und rendert dann type-tile-original/tuning/rennsport; Klick auf type-tile-tuning behält modell=p601 in URL (/katalog/trabant/tuning?modell=p601), 4) link-normteile + link-abverkauf erscheinen auf /katalog/trabant und /katalog/wartburg, korrekt NICHT auf /katalog/vw, /katalog/opel, /katalog/b1000, 5) /normteile + /abverkauf laden container mit korrektem data-testid, kein hängender Ladezustand, zeigen 'Aktuell keine Artikel...' (erwartet – DB leer), 6) Admin: pf-special-category hat 3 Optionen (Standard/NORMTEIL/ABVERKAUF); bei Standard+Trabant erscheint pf-vehicle-model mit P601/1.1/kein; SKU-Preview: TR-T-MO-007 → NT-001 → AB-001 wechseln korrekt live; NORMTEIL blendet vehicle/type/assembly aus; TEST-Normteil erfolgreich angelegt (NT-001 in Liste sichtbar) und wieder gelöscht.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "sb_db.SPECIAL_PREFIX['ABVERKAUF']='AB' kollidiert visuell mit AMAP['ABGAS']='AB' – Kollision technisch ausgeschlossen (2-Teile vs 4-Teile SKU), aber leicht verwechselbar bei manueller SKU-Sichtung. Optional: 'AV' als Präfix für Abverkauf, um Verwechslung mit Abgas-SKUs zu vermeiden.",
+    "CatalogVehicle.jsx `matches`-Callback wird bei jedem Render neu erzeugt und in useMemo verwendet ohne in dependencies zu stehen – funktioniert wegen expliziter deps [v, products, selectedModel], aber eslint react-hooks/exhaustive-deps würde meckern. Kein Blocker.",
+    "SpecialCategory.jsx: `loading && list.length === 0` -> zeigt 'Lädt' nur wenn keine gefilterten Produkte da sind. Falls ProductsContext initial `loading=false, products=[]` liefert, wird sofort 'Aktuell keine Artikel' angezeigt – aktuelles Verhalten OK."
+  ],
+  "updated_files": ["/app/backend/tests/backend_test.py"],
+  "success_rate": {"backend": "100% (34/34 non-skipped)", "frontend": "100%"},
+  "test_credentials": "Admin: kupke-admin (siehe /app/memory/test_credentials.md)",
+  "seed_data_creation": "Ein TEST_Normteil (NT-001) im Admin-UI angelegt und direkt wieder gelöscht. Backend-Test-Fixtures räumen ihre TEST_-Produkte per DELETE class-scope-teardown auf.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Alle Iteration-3-Features (Logo ohne Tuning, SEO-Meta-Dedup, Trabant-Typ-Auswahl P601/1.1, Normteile/Abverkauf-Seiten, Admin special_category+vehicle_model) verifiziert. SPECIAL_PREFIX 'AB' für Abverkauf kollidiert nicht mit Abgas-SKU-Format, aber optional in 'AV' umbenennen zur besseren Lesbarkeit. Alle 34 Backend-Tests grün (5 neu hinzugefügt in TestSpecialCategories)."
+}

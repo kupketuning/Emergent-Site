@@ -228,10 +228,10 @@ async def delete_inquiry(inquiry_id: str, x_admin_token: Optional[str] = Header(
 
 
 # ==================== Supabase-backed admin product management ====================
-PRODUCT_FIELDS = ['sku', 'name', 'description', 'vehicle', 'product_type', 'assembly_group',
+PRODUCT_FIELDS = ['sku', 'name', 'description', 'vehicle', 'vehicle_model', 'product_type', 'assembly_group',
                   'price_net', 'tax_rate', 'is_set', 'images', 'explosion_drawing_id',
                   'dekra_certified', 'stock_quantity', 'stock_min_alert', 'weight_grams',
-                  'is_active', 'sort_order', 'youtube_url']
+                  'is_active', 'sort_order', 'youtube_url', 'special_category']
 
 
 def _gross(net, rate):
@@ -249,6 +249,9 @@ def _prod(rec):
 
 def _coerce(data: dict) -> dict:
     out = {k: v for k, v in data.items() if k in PRODUCT_FIELDS}
+    for k in ('vehicle', 'vehicle_model', 'product_type', 'assembly_group', 'special_category'):
+        if k in out and out[k] == '':
+            out[k] = None
     if 'price_net' in out and out['price_net'] not in (None, ''):
         out['price_net'] = float(str(out['price_net']).replace(',', '.'))
     if 'tax_rate' in out and out['tax_rate'] not in (None, ''):
@@ -267,24 +270,31 @@ def _coerce(data: dict) -> dict:
 
 
 @api_router.get("/sb/next-sku")
-async def sb_next_sku(vehicle: str, product_type: str, assembly_group: str,
-                      is_set: bool = False, x_admin_token: Optional[str] = Header(None)):
+async def sb_next_sku(vehicle: Optional[str] = None, product_type: Optional[str] = None,
+                      assembly_group: Optional[str] = None, is_set: bool = False,
+                      special_category: Optional[str] = None, x_admin_token: Optional[str] = Header(None)):
     _check_admin(x_admin_token)
     pool = await sb_db.get_pool()
     async with pool.acquire() as conn:
-        sku = await sb_db.generate_sku(conn, vehicle, product_type, assembly_group, is_set)
+        if special_category:
+            sku = await sb_db.generate_special_sku(conn, special_category)
+        else:
+            sku = await sb_db.generate_sku(conn, vehicle, product_type, assembly_group, is_set)
     return {"sku": sku}
 
 
 @api_router.get("/sb/products")
 async def sb_list_products(vehicle: Optional[str] = None, assembly_group: Optional[str] = None,
-                           is_active: Optional[bool] = None, q: Optional[str] = None):
+                           is_active: Optional[bool] = None, q: Optional[str] = None,
+                           special_category: Optional[str] = None):
     pool = await sb_db.get_pool()
     where, args, i = [], [], 1
     if vehicle:
         where.append(f"vehicle=${i}"); args.append(vehicle); i += 1
     if assembly_group:
         where.append(f"assembly_group=${i}"); args.append(assembly_group); i += 1
+    if special_category:
+        where.append(f"special_category=${i}"); args.append(special_category); i += 1
     if is_active is not None:
         where.append(f"is_active=${i}"); args.append(is_active); i += 1
     if q:
@@ -315,8 +325,11 @@ async def sb_create_product(data: dict, x_admin_token: Optional[str] = Header(No
     async with pool.acquire() as conn:
         vals = _coerce(data)
         if not vals.get('sku'):
-            vals['sku'] = await sb_db.generate_sku(conn, data['vehicle'], data['product_type'],
-                                                   data['assembly_group'], bool(data.get('is_set')))
+            if data.get('special_category'):
+                vals['sku'] = await sb_db.generate_special_sku(conn, data['special_category'])
+            else:
+                vals['sku'] = await sb_db.generate_sku(conn, data['vehicle'], data['product_type'],
+                                                       data['assembly_group'], bool(data.get('is_set')))
         cols = [c for c in PRODUCT_FIELDS if c in vals]
         placeholders = ",".join(f"${k}" for k in range(1, len(cols) + 1))
         args = [vals[c] for c in cols]
