@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { Flag, Wrench, Award, Car, ChevronLeft, ChevronRight, ArrowRight, Trophy, CalendarCheck, BadgeCheck, Cog } from 'lucide-react';
+import { Flag, Wrench, Award, Car, ChevronLeft, ChevronRight, ArrowRight, Trophy, CalendarCheck, BadgeCheck, Cog, Disc } from 'lucide-react';
 import ProductCard from '../components/ProductCard';
 import { features, teams, IMG } from '../mock';
 import { useProducts } from '../context/ProductsContext';
@@ -69,8 +69,52 @@ const Home = () => {
         </div>
       </section>
 
+      {/* Race video */}
+      <section className="bg-white border-b border-gray-200" data-testid="home-video">
+        <div className="max-w-[1300px] mx-auto px-4 py-14 grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
+          <div className="aspect-video rounded-xl overflow-hidden shadow-lg border border-gray-200">
+            <iframe
+              className="w-full h-full"
+              src="https://www.youtube.com/embed/54tBzBAtygM"
+              title="Kupke Tuning Motorsport Video"
+              loading="lazy"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+              data-testid="home-youtube-embed"
+            />
+          </div>
+          <div>
+            <span className="inline-flex items-center gap-2 text-[#E63946] text-sm font-bold uppercase tracking-widest mb-3"><Flag className="w-4 h-4" /> Aus dem Rennalltag</span>
+            <h2 className="font-logo text-3xl md:text-4xl font-bold text-[#17191d] uppercase mb-4">Erlebe uns im Motorsport</h2>
+            <p className="text-gray-600 mb-6 max-w-md">Ein Blick hinter die Kulissen: unsere Teams, unsere Technik und unsere Leidenschaft für den Trabant-Motorsport – hautnah erlebt.</p>
+            <Link to="/team" className="inline-flex items-center gap-2 text-[#E63946] font-semibold hover:underline" data-testid="home-video-team-link">
+              Alle Teams entdecken <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+        </div>
+      </section>
+
       {/* Vehicle tiles */}
       <VehicleTiles />
+
+      {/* Brake spotlight */}
+      <section className="bg-[#E63946]" data-testid="brake-spotlight">
+        <div className="max-w-[1300px] mx-auto px-4 py-10 flex flex-col md:flex-row items-center justify-between gap-6 text-white">
+          <div>
+            <span className="inline-flex items-center gap-2 text-white/80 text-sm font-bold uppercase tracking-widest mb-2"><Disc className="w-4 h-4" /> Eigenentwicklung</span>
+            <h2 className="font-logo text-2xl md:text-3xl font-bold uppercase mb-2">Bremsen von Kupke Tuning</h2>
+            <p className="text-white/90 max-w-xl">Mehr Verzögerung, mehr Sicherheit: unsere Scheibenbremsen-Umrüstungen sind eine unserer stärksten Eigenentwicklungen – erprobt im Motorsport.</p>
+          </div>
+          <Link
+            to="/katalog/trabant/tuning/bremse"
+            className="shrink-0 inline-flex items-center gap-2 bg-white text-[#E63946] font-bold px-6 py-3 rounded-md uppercase tracking-wide hover:bg-[#17191d] hover:text-white transition-colors"
+            data-testid="brake-spotlight-cta"
+          >
+            Bremsen entdecken <ArrowRight className="w-4 h-4" />
+          </Link>
+        </div>
+      </section>
+
 
       {/* Product carousel */}
       <section id="beliebte-tuningteile" className="max-w-[1300px] mx-auto px-4 py-6">
@@ -119,7 +163,7 @@ const Home = () => {
             <p className="text-gray-400 mt-3 max-w-2xl mx-auto">Wir unterstützen junge Teams in ihrer Entwicklung – mit unseren speziell entwickelten Tuningteilen für den Trabant.</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-            {teams.map((t) => (
+            {teams.slice(0, 4).map((t) => (
               <div key={t.name} className="bg-white/5 border border-white/10 rounded-lg p-5 hover:border-[#E63946]/60 transition-colors">
                 <div className="flex items-center gap-2 mb-3">
                   <span className="w-9 h-9 rounded-full bg-[#E63946] flex items-center justify-center"><Trophy className="w-5 h-5" /></span>
@@ -128,11 +172,20 @@ const Home = () => {
                     <p className="text-xs text-gray-400">{t.ort}</p>
                   </div>
                 </div>
-                <p className="text-[#E63946] text-xs font-bold uppercase tracking-wide mb-1">{t.disziplin}</p>
+                <p className="text-[#E63946] text-xs font-bold uppercase tracking-wide mb-1">{t.rennserie || t.disziplin}</p>
                 <p className="font-semibold text-sm mb-2">{t.fahrzeug}</p>
                 <p className="text-gray-400 text-sm leading-relaxed">{t.text}</p>
               </div>
             ))}
+          </div>
+          <div className="text-center mt-10">
+            <Link
+              to="/team"
+              className="inline-flex items-center gap-2 border-2 border-white/30 hover:border-[#E63946] hover:text-[#E63946] text-white font-semibold px-8 py-3 rounded-md uppercase tracking-wide transition-colors"
+              data-testid="home-teams-cta"
+            >
+              Alle Teams ansehen <ArrowRight className="w-4 h-4" />
+            </Link>
           </div>
         </div>
       </section>

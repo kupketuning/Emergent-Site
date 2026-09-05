@@ -1,22 +1,21 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, Car } from 'lucide-react';
 import { VEHICLES } from '../lib/catalog';
 
 const Tile = ({ v, big }) => (
   <Link
     to={`/katalog/${v.slug}`}
     data-testid={`vehicle-tile-${v.slug}`}
-    className={`group relative overflow-hidden rounded-xl border border-gray-200 ${big ? 'md:col-span-2 md:row-span-2 min-h-[280px]' : 'min-h-[180px]'}`}
+    className={`group relative overflow-hidden rounded-xl border-2 border-[#23262b] bg-[#17191d] hover:border-[#E63946] transition-colors flex flex-col items-center justify-center text-center p-6 ${big ? 'md:col-span-2 md:row-span-2 min-h-[280px]' : 'min-h-[180px]'}`}
   >
-    <img src={v.image} alt={v.name} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" loading="lazy" />
-    <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-transparent" />
-    <div className="relative h-full flex flex-col justify-end p-5">
-      <span className={`font-logo font-bold text-white uppercase ${big ? 'text-3xl md:text-4xl' : 'text-xl'}`}>{v.name}</span>
-      <span className="mt-2 inline-flex items-center gap-1 text-[#E63946] font-semibold text-sm opacity-0 group-hover:opacity-100 transition-opacity">
-        Katalog öffnen <ChevronRight className="w-4 h-4" />
-      </span>
-    </div>
+    <span className={`rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-4 group-hover:bg-[#E63946]/20 group-hover:border-[#E63946]/50 transition-colors ${big ? 'w-20 h-20' : 'w-14 h-14'}`}>
+      <Car className={`text-[#E63946] group-hover:text-white transition-colors ${big ? 'w-10 h-10' : 'w-7 h-7'}`} strokeWidth={1.6} />
+    </span>
+    <span className={`font-logo font-bold text-white uppercase tracking-wide ${big ? 'text-3xl md:text-4xl' : 'text-xl'}`}>{v.name}</span>
+    <span className="mt-3 inline-flex items-center gap-1 text-[#2EC4B6] font-semibold text-sm opacity-0 group-hover:opacity-100 transition-opacity">
+      Katalog öffnen <ChevronRight className="w-4 h-4" />
+    </span>
   </Link>
 );
 

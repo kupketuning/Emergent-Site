@@ -16,6 +16,7 @@ import Checkout from './pages/Checkout';
 import Success from './pages/Success';
 import Search from './pages/Search';
 import Kontakt from './pages/Kontakt';
+import Team from './pages/Team';
 import StaticPage from './pages/StaticPage';
 import Admin from './pages/Admin';
 
@@ -42,6 +43,7 @@ function ShopRoutes() {
         <Route path="/bestellung-bestaetigt" element={<Success />} />
         <Route path="/search" element={<Search />} />
         <Route path="/kontakt" element={<Kontakt />} />
+        <Route path="/team" element={<Team />} />
         <Route path="/impressum" element={<StaticPage slug="impressum" />} />
         <Route path="/agb" element={<StaticPage slug="agb" />} />
         <Route path="/widerruf" element={<StaticPage slug="widerruf" />} />

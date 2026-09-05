@@ -28,6 +28,7 @@ const Footer = () => {
   ];
   const unternehmen = [
     { to: '/ueber-uns', label: 'Über uns' },
+    { to: '/team', label: 'Unsere Teams' },
     { to: '/dekra', label: 'DEKRA-geprüfte Qualität' },
     { to: '/katalog/trabant', label: 'Trabant-Katalog' },
     { to: '/katalog/trabant/rennsport', label: 'Motorsport-Teile' },

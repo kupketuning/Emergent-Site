@@ -79,11 +79,19 @@ export const adaptProduct = (p) => {
 export const brands = ['KONI', 'SPAX', 'EIBACH', 'H&R', 'K&N', 'BORBET', 'AZEV', 'HEIGO', 'WIECHERS', 'SANDTLER', 'ISA-RACING', 'RH'];
 
 export const teams = [
-  { name: 'Team Rudolph', ort: 'Chemnitz', disziplin: 'Ralley', fahrzeug: 'Trabant 1300 RS', text: '1,3-Liter-Motor, ca. 75 PS, 5-Gang-VW-Getriebe, GTI-Bremse. Sehr gleichmäßiger Fahrer mit starken Gesamtresultaten.' },
-  { name: 'Team Heide', ort: 'Greiz', disziplin: 'Rundstrecke / Slalom / Bergrennen', fahrzeug: 'Trabant 1300', text: 'ca. 130 PS, extreme Gewichtserleichterung – fahrfertig nur 580 kg, KUPKE-KONI-Fahrwerk, Gruppe-A-Abgasanlage.' },
-  { name: 'Team Werner', ort: 'Zeulenroda', disziplin: 'Rundstrecke / Slalom / Bergrennen', fahrzeug: 'Trabant 1300', text: 'ca. 100 PS, Gruppe-A-Abgasanlage, KUPKE-KONI-Gewindefahrwerk, 601-er Optik, Gewichtserleichterung.' },
-  { name: 'Team Kupke', ort: 'Lengenfeld', disziplin: 'Bergrennen / Slalom', fahrzeug: 'Audi S3', text: '1,8-Liter-Turbomotor, ca. 270 PS, 6-Gang-Getriebe mit Allradantrieb – unser gelber S3 als Blickfang.' },
+  { name: 'Team Kupke', ort: 'Lengenfeld', disziplin: 'Bergrennen / Slalom', rennserie: 'Bergrennen / Slalom', fahrzeug: 'Audi S3', text: '1,8-Liter-Turbomotor, ca. 270 PS, 6-Gang-Getriebe mit Allradantrieb – unser gelber S3 als Blickfang.', instagram: '', youtube: '' },
+  { name: 'Team Rudolph', ort: 'Chemnitz', disziplin: 'Rallye', rennserie: 'Rallye', fahrzeug: 'Trabant 1300 RS', text: '1,3-Liter-Motor, ca. 75 PS, 5-Gang-VW-Getriebe, GTI-Bremse. Sehr gleichmäßiger Fahrer mit starken Gesamtresultaten.', instagram: '', youtube: '' },
+  { name: 'Team Heide', ort: 'Greiz', disziplin: 'Rundstrecke / Slalom / Bergrennen', rennserie: 'Rundstrecke / Slalom / Bergrennen', fahrzeug: 'Trabant 1300', text: 'ca. 130 PS, extreme Gewichtserleichterung – fahrfertig nur 580 kg, KUPKE-KONI-Fahrwerk, Gruppe-A-Abgasanlage.', instagram: '', youtube: '' },
+  { name: 'Team Werner', ort: 'Zeulenroda', disziplin: 'Rundstrecke / Slalom / Bergrennen', rennserie: 'Rundstrecke / Slalom / Bergrennen', fahrzeug: 'Trabant 1300', text: 'ca. 100 PS, Gruppe-A-Abgasanlage, KUPKE-KONI-Gewindefahrwerk, 601-er Optik, Gewichtserleichterung.', instagram: '', youtube: '' },
+  { name: 'Frauenteam', ort: 'Lengenfeld', disziplin: 'Motorsport', rennserie: 'Motorsport', fahrzeug: 'Trabant mit Scheibenbremse', text: 'Ein reines Frauenteam am Steuer eines Trabant mit KUPKE-Scheibenbremsen-Umrüstung – Motorsport-Power ganz ohne Vorurteile.', instagram: '', youtube: '' },
 ];
+
+// Soziales Engagement, kein aktives Renn-Team
+export const socialEngagement = {
+  name: 'Herztakt-Sponsoring',
+  fahrzeug: 'Wartburg',
+  text: 'Mit unserem gesponserten Wartburg unterstützen wir die Aktion „Herztakt" für krebskranke Kinder – Motorsport, der etwas bewegt.',
+};
 
 export const topbarItems = [
   { icon: 'Truck', text: 'Versand deutschlandweit & Selbstabholung in Lengenfeld' },
