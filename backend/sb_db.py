@@ -53,25 +53,25 @@ async def generate_sku(conn, vehicle, product_type, assembly_group, is_set):
     return f"{base}-{max_n + 1:03d}"
 
 
-def ensure_bucket():
+def ensure_bucket(bucket=BUCKET):
     if not (SUPABASE_URL and SERVICE_KEY):
         raise Exception("Supabase Storage nicht konfiguriert (SUPABASE_URL / SERVICE_KEY fehlt)")
     try:
         requests.post(
             f"{SUPABASE_URL}/storage/v1/bucket",
             headers={'Authorization': f'Bearer {SERVICE_KEY}', 'apikey': SERVICE_KEY, 'Content-Type': 'application/json'},
-            json={'id': BUCKET, 'name': BUCKET, 'public': True},
+            json={'id': bucket, 'name': bucket, 'public': True},
             timeout=15,
         )
     except Exception:
         pass  # already exists or transient
 
 
-def upload_bytes(filename, content, content_type):
-    ensure_bucket()
+def upload_bytes(filename, content, content_type, bucket=BUCKET):
+    ensure_bucket(bucket)
     safe = (filename or 'datei').replace('/', '_').replace(' ', '_')
     path = f"{uuid.uuid4().hex}-{safe}"
-    url = f"{SUPABASE_URL}/storage/v1/object/{BUCKET}/{path}"
+    url = f"{SUPABASE_URL}/storage/v1/object/{bucket}/{path}"
     r = requests.post(
         url,
         headers={
@@ -85,4 +85,4 @@ def upload_bytes(filename, content, content_type):
     )
     if r.status_code not in (200, 201):
         raise Exception(f"Upload fehlgeschlagen: {r.status_code} {r.text}")
-    return f"{SUPABASE_URL}/storage/v1/object/public/{BUCKET}/{path}"
+    return f"{SUPABASE_URL}/storage/v1/object/public/{bucket}/{path}"

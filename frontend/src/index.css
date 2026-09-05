@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Roboto:wght@400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700;800&family=Permanent+Marker&family=Inter:wght@400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,14 +6,21 @@
 
 body {
     margin: 0;
-    font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    color: #1a1a1a;
+    color: #333333;
+}
+
+:root {
+    --kt-red: #E63946;
+    --kt-red-dark: #C92F3C;
+    --kt-teal: #2EC4B6;
+    --kt-dark: #17191d;
 }
 
 .font-logo {
-    font-family: 'Oswald', 'Roboto', sans-serif;
+    font-family: 'Oswald', 'Inter', sans-serif;
 }
 
 code {
@@ -75,6 +82,18 @@ code {
 
 @layer components {
   .inp {
-    @apply w-full border border-gray-300 rounded-md px-3 py-2.5 text-sm outline-none focus:border-[#e11d1d] focus:ring-1 focus:ring-[#e11d1d] transition-colors;
+    @apply w-full border border-gray-300 rounded-md px-3 py-2.5 text-sm outline-none focus:border-[#E63946] focus:ring-1 focus:ring-[#E63946] transition-colors;
+  }
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 bg-[#E63946] hover:bg-[#C92F3C] text-white font-semibold rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 bg-[#2EC4B6] hover:bg-[#25a89c] text-white font-semibold rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .badge-dekra {
+    @apply bg-[#2EC4B6] text-white text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide;
+  }
+  .badge-set {
+    @apply bg-[#E63946] text-white text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide;
   }
 }

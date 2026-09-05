@@ -1,9 +1,10 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Header, Query, UploadFile, File
+from fastapi import FastAPI, APIRouter, HTTPException, Header, Query, UploadFile, File, Request
 from starlette.concurrency import run_in_threadpool
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
+import json
 import logging
 from pathlib import Path
 from pydantic import BaseModel, Field
@@ -11,8 +12,13 @@ from typing import List, Optional
 import uuid
 from datetime import datetime, timezone
 
+import asyncpg
+import stripe
+
 from seed_data import PRODUCTS as SEED_PRODUCTS, CATEGORIES
 import sb_db
+import invoice
+import image_util
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -22,6 +28,10 @@ client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
 ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'kupke-admin')
+
+stripe.api_key = os.environ['STRIPE_API_KEY']
+STRIPE_WEBHOOK_SECRET = os.environ.get('STRIPE_WEBHOOK_SECRET', '')
+SHIPPING_RATES_CENTS = {'HERMES': 595, 'ABHOLUNG': 0}
 
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
@@ -395,9 +405,255 @@ async def sb_upload(files: List[UploadFile] = File(...), x_admin_token: Optional
     urls = []
     for f in files:
         content = await f.read()
-        url = await run_in_threadpool(sb_db.upload_bytes, f.filename, content, f.content_type)
+        content, ctype = await run_in_threadpool(image_util.apply_watermark, content, f.content_type)
+        url = await run_in_threadpool(sb_db.upload_bytes, f.filename, content, ctype)
         urls.append(url)
     return {"urls": urls}
+
+
+# ==================== Stripe Checkout (server-side, prices from Supabase) ====================
+class CheckoutItem(BaseModel):
+    product_id: str
+    quantity: int = 1
+    variant: str = ""
+
+
+class CheckoutCustomer(BaseModel):
+    email: str
+    first_name: str = ""
+    last_name: str = ""
+    company: str = ""
+    street: str = ""
+    zip: str = ""
+    city: str = ""
+    country: str = "DE"
+    phone: str = ""
+
+
+class CheckoutRequest(BaseModel):
+    items: List[CheckoutItem]
+    shipping_method: str  # HERMES | ABHOLUNG
+    customer: CheckoutCustomer
+    origin_url: str
+
+
+@api_router.post("/checkout")
+async def create_checkout(req: CheckoutRequest):
+    if not req.items:
+        raise HTTPException(status_code=400, detail="Der Warenkorb ist leer.")
+    if req.shipping_method not in SHIPPING_RATES_CENTS:
+        raise HTTPException(status_code=400, detail="Ungültige Versandart.")
+
+    pool = await sb_db.get_pool()
+    line_items, resolved = [], []
+    subtotal_net = tax_total = 0.0
+
+    async with pool.acquire() as conn:
+        for it in req.items:
+            r = await conn.fetchrow("select * from products where id=$1", it.product_id)
+            if not r:
+                raise HTTPException(status_code=404, detail=f"Produkt nicht gefunden: {it.product_id}")
+            net = float(r['price_net'] or 0)
+            if net <= 0:
+                raise HTTPException(status_code=400,
+                                    detail=f"Für „{r['name']}“ ist kein Preis hinterlegt – bitte per Preisanfrage bestellen.")
+            rate = float(r['tax_rate'] or 0)
+            gross = round(net * (1 + rate / 100), 2)
+            qty = max(1, int(it.quantity))
+            name = r['name'] + (f" ({it.variant})" if it.variant else "")
+            images = list(r['images'] or [])
+            prod_data = {"name": name}
+            if images:
+                prod_data["images"] = images[:1]
+            line_items.append({
+                "price_data": {"currency": "eur", "product_data": prod_data,
+                               "unit_amount": int(round(gross * 100))},
+                "quantity": qty,
+            })
+            subtotal_net += net * qty
+            tax_total += (gross - net) * qty
+            resolved.append({"product_id": str(r['id']), "sku": r['sku'], "name": name,
+                             "quantity": qty, "variant": it.variant,
+                             "unit_price_net": net, "unit_price_gross": gross, "tax_rate": rate,
+                             "vehicle": r['vehicle'], "product_type": r['product_type'],
+                             "assembly_group": r['assembly_group']})
+
+    ship_cents = SHIPPING_RATES_CENTS[req.shipping_method]
+    shipping_options = []
+    if ship_cents > 0:
+        shipping_options = [{"shipping_rate_data": {
+            "type": "fixed_amount",
+            "fixed_amount": {"amount": ship_cents, "currency": "eur"},
+            "display_name": "Hermes Versand",
+        }}]
+    total_gross = round(subtotal_net + tax_total + ship_cents / 100, 2)
+
+    session = await run_in_threadpool(lambda: stripe.checkout.Session.create(
+        mode="payment",
+        line_items=line_items,
+        shipping_options=shipping_options,
+        customer_email=req.customer.email or None,
+        success_url=f"{req.origin_url}/bestellung-bestaetigt?session_id={{CHECKOUT_SESSION_ID}}",
+        cancel_url=f"{req.origin_url}/warenkorb",
+        metadata={"shipping_method": req.shipping_method},
+    ))
+
+    await db.pending_checkouts.insert_one({
+        "session_id": session.id,
+        "items": resolved,
+        "customer": req.customer.dict(),
+        "shipping_method": req.shipping_method,
+        "shipping_cost_gross": round(ship_cents / 100, 2),
+        "subtotal_net": round(subtotal_net, 2),
+        "tax_total": round(tax_total, 2),
+        "total_gross": total_gross,
+        "finalized": False,
+        "order_id": None,
+        "order_number": None,
+        "created_at": datetime.now(timezone.utc),
+    })
+    return {"url": session.url, "session_id": session.id}
+
+
+async def _finalize_order(session_id: str):
+    pending = await db.pending_checkouts.find_one({"session_id": session_id})
+    if not pending:
+        return None
+    if pending.get("finalized"):
+        return {"order_number": pending.get("order_number"), "status": "BEZAHLT"}
+
+    session = await run_in_threadpool(stripe.checkout.Session.retrieve, session_id)
+    if session.get("payment_status") != "paid" and session.get("status") != "complete":
+        return {"order_number": None, "status": "PENDING"}
+
+    cust = pending["customer"]
+    pool = await sb_db.get_pool()
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            crow = await conn.fetchrow(
+                """insert into customers (email, first_name, last_name, company, street, zip, city, country, phone)
+                   values ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+                   on conflict (email) do update set
+                     first_name=excluded.first_name, last_name=excluded.last_name,
+                     company=excluded.company, street=excluded.street, zip=excluded.zip,
+                     city=excluded.city, country=excluded.country, phone=excluded.phone
+                   returning id""",
+                cust.get("email"), cust.get("first_name"), cust.get("last_name"),
+                cust.get("company"), cust.get("street"), cust.get("zip"),
+                cust.get("city"), cust.get("country", "DE"), cust.get("phone"))
+            customer_id = crow["id"]
+            n = await conn.fetchval("select get_next_number('order_2026')")
+            order_number = f"2026-{n:05d}"
+            orow = await conn.fetchrow(
+                """insert into orders (order_number, customer_id, status, items, shipping_method,
+                       shipping_cost_gross, subtotal_net, tax_total, total_gross,
+                       stripe_payment_intent_id, stripe_payment_status)
+                   values ($1,$2,'BEZAHLT',$3::jsonb,$4,$5,$6,$7,$8,$9,$10)
+                   returning id""",
+                order_number, customer_id, json.dumps(pending["items"]),
+                pending["shipping_method"], pending["shipping_cost_gross"],
+                pending["subtotal_net"], pending["tax_total"], pending["total_gross"],
+                session.get("payment_intent"), session.get("payment_status"))
+            order_id = orow["id"]
+            for it in pending["items"]:
+                await conn.execute(
+                    "update products set stock_quantity = greatest(0, stock_quantity - $1) where id=$2",
+                    it["quantity"], it["product_id"])
+
+        # Rechnung erzeugen (best-effort, außerhalb der Bestell-Transaktion)
+        try:
+            await _create_invoice(conn, order_id, customer_id, cust, pending, order_number)
+        except Exception:
+            logger.exception("Rechnungserzeugung fehlgeschlagen für Bestellung %s", order_number)
+
+    await db.pending_checkouts.update_one(
+        {"session_id": session_id},
+        {"$set": {"finalized": True, "order_id": str(order_id), "order_number": order_number}})
+    return {"order_number": order_number, "status": "BEZAHLT"}
+
+
+async def _create_invoice(conn, order_id, customer_id, cust, pending, order_number):
+    year = datetime.now(timezone.utc).year
+    n = await conn.fetchval("select get_next_number($1)", f"invoice_{year}")
+    invoice_number = f"RE-{year}-{n:04d}"
+
+    items = []
+    for it in pending["items"]:
+        line_net = round(float(it["unit_price_net"]) * int(it["quantity"]), 2)
+        items.append({
+            "sku": it.get("sku", ""), "name": it.get("name", ""),
+            "path": invoice.build_breadcrumb(it.get("vehicle"), it.get("product_type"), it.get("assembly_group")),
+            "quantity": it["quantity"], "unit_price_net": it["unit_price_net"], "line_net": line_net,
+        })
+
+    issue_date = datetime.now(timezone.utc)
+    pdf_bytes = await run_in_threadpool(
+        lambda: invoice.generate_invoice_pdf(
+            invoice_number=invoice_number, order_number=order_number, issue_date=issue_date,
+            customer=cust, items=items, subtotal_net=pending["subtotal_net"],
+            tax_total=pending["tax_total"], shipping_gross=pending["shipping_cost_gross"],
+            total_gross=pending["total_gross"]))
+    pdf_url = await run_in_threadpool(
+        sb_db.upload_bytes, f"{invoice_number}.pdf", pdf_bytes, "application/pdf", "invoices")
+
+    inv = await conn.fetchrow(
+        """insert into invoices (invoice_number, order_id, customer_id, type, items,
+               subtotal_net, tax_total, total_gross, payment_method, pdf_url)
+           values ($1,$2,$3,'AUTO',$4::jsonb,$5,$6,$7,'Kreditkarte',$8)
+           returning id""",
+        invoice_number, order_id, customer_id, json.dumps(items),
+        pending["subtotal_net"], pending["tax_total"], pending["total_gross"], pdf_url)
+    await conn.execute("update orders set invoice_id=$1 where id=$2", inv["id"], order_id)
+    return invoice_number
+
+
+@api_router.get("/checkout/status/{session_id}")
+async def checkout_status(session_id: str):
+    result = await _finalize_order(session_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Checkout-Sitzung nicht gefunden.")
+    return result
+
+
+@api_router.post("/stripe-webhook")
+async def stripe_webhook(request: Request):
+    payload = await request.body()
+    sig = request.headers.get("stripe-signature", "")
+    if STRIPE_WEBHOOK_SECRET:
+        try:
+            event = stripe.Webhook.construct_event(payload, sig, STRIPE_WEBHOOK_SECRET)
+        except Exception:
+            raise HTTPException(status_code=400, detail="Ungültige Stripe-Signatur.")
+    else:
+        event = json.loads(payload)
+    if event.get("type") == "checkout.session.completed":
+        await _finalize_order(event["data"]["object"]["id"])
+    return {"status": "ok"}
+
+
+@api_router.get("/sb/orders")
+async def sb_list_orders(x_admin_token: Optional[str] = Header(None)):
+    _check_admin(x_admin_token)
+    pool = await sb_db.get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            """select o.*, c.email as customer_email, c.first_name, c.last_name,
+                      c.street, c.zip, c.city,
+                      i.invoice_number, i.pdf_url as invoice_pdf_url
+               from orders o
+               left join customers c on c.id = o.customer_id
+               left join invoices i on i.id = o.invoice_id
+               order by o.created_at desc""")
+    out = []
+    for r in rows:
+        d = dict(r)
+        if isinstance(d.get('items'), str):
+            try:
+                d['items'] = json.loads(d['items'])
+            except Exception:
+                pass
+        out.append(d)
+    return out
 
 
 app.include_router(api_router)

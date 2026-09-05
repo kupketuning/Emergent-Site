@@ -1,0 +1,50 @@
+{
+  "summary": "Frontend-only SEO/meta verification for Kupke-Tuning (no backend testing, as instructed). Verified static SEO assets via curl (/robots.txt, /sitemap.xml, /og-default.jpg) and client-side react-helmet-async meta injection via Playwright DOM inspection on Home '/', '/impressum', and '/produkt/TR-T-BR-SET-002'. All 7 requested acceptance criteria PASS when evaluating the helmet-injected (last-occurrence) tags. Zero JS console errors / zero React crashes on all 3 pages; main content rendered on all (vehicle-tiles, static-page-impressum, product-page testids found). ONE real defect found: index.html static default meta tags are never replaced/deduped by react-helmet-async, so every page ships DUPLICATE title/description/og:title/og:type/og:image/twitter:* tags, and the FIRST (default) occurrence is what non-JS social crawlers read.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {
+        "flow": "Per-page meta tags (react-helmet-async) vs public/index.html defaults",
+        "issue": "DUPLICATE meta tags on EVERY page. Verified in DOM: 2x <title>, 2x meta[name=description], 2x og:title, 2x og:type, 2x og:image, 2x twitter:title/description/image. Helmet APPENDS its tags instead of replacing the index.html ones because the index.html tags lack the react-helmet-async ownership attribute (data-rh=\"true\"). Consequence on /produkt/TR-T-BR-SET-002: first og:type = 'website' (default) while the correct 'product' is only in the 2nd tag; first og:title = generic site title, first og:image = og-default.jpg while the correct product image (unsplash URL) is only in the 2nd tag. Facebook/LinkedIn/Slack/WhatsApp use the FIRST og:* occurrence, so per-page OG data is effectively ignored for those tags. Duplicate <title> is also invalid HTML. og:url and link[rel=canonical] are NOT affected (unique, correct on all 3 pages).",
+        "affected_selectors": ["head > title", "meta[property=\"og:title\"]", "meta[property=\"og:type\"]", "meta[property=\"og:image\"]", "meta[name=\"description\"]"]
+      },
+      {
+        "flow": "Social crawler previews (no-JS)",
+        "issue": "Architectural limitation: per-page tags are injected client-side only. Non-JS crawlers (Facebook, LinkedIn, WhatsApp, Slack, X) fetch raw HTML and will ALWAYS see the index.html defaults for every URL, including product pages. Google (renders JS) is fine. Needs prerendering/SSR or an edge meta-injection layer if rich social previews for products are a requirement.",
+        "affected_selectors": []
+      }
+    ],
+    "design_issues": [
+      {
+        "screen": "SEO assets",
+        "issues": [
+          "sitemap.xml contains only 15 static routes (home, 5 /katalog/*, 3 info, 6 legal). No product URLs (/produkt/<sku>) and no sub-category (/katalog/<v>/<type>/<baugruppe>) URLs -> product pages are not discoverable via sitemap.",
+          "Preview /robots.txt has Cloudflare-managed content prepended containing its own 'User-agent: *' group BEFORE the app group. Two 'User-agent: *' groups means strict parsers may honour only the first, potentially ignoring 'Disallow: /admin'. Preview-edge artifact only, but worth confirming on the production host."
+        ]
+      }
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Fix duplicate meta tags: add data-rh=\"true\" to the <title> and all <meta name/property> SEO tags in /app/frontend/public/index.html so react-helmet-async takes ownership and REPLACES them, OR remove those tags from index.html entirely and rely on <Seo> defaults. Re-verify that head contains exactly one <title>, one og:title, one og:type, one og:image per page.",
+    "Decide on prerendering/SSR (or edge meta injection) if Facebook/LinkedIn/WhatsApp product previews are required - client-side helmet tags are invisible to non-JS crawlers.",
+    "Extend /app/frontend/scripts/gen-seo.js to emit product (/produkt/<sku>) and sub-category catalog URLs into sitemap.xml.",
+    "Note for dev workflow: CRA dev-server caches the transformed public/index.html. During this run the served HTML still had a stale og:image=\"/og-default.jpg\" (relative, invalid for OG) until 'supervisorctl restart frontend'. After restart it correctly serves the absolute https://design-322.emergent.host/og-default.jpg. Always restart frontend after editing public/index.html."
+  ],
+  "critical_code_review_comments": [
+    "Seo.jsx uses <Helmet prioritizeSeoTags> - prioritizeSeoTags only orders Helmet's OWN tags; it does not dedupe against tags hardcoded in index.html. This is the root cause of the duplication.",
+    "Seo.jsx hardcodes og:image:width=1200 / og:image:height=630 for every page, including product pages where the image is an arbitrary supabase/unsplash asset of unknown dimensions -> wrong dimension hints sent to crawlers. Only emit these when using DEFAULT_OG_IMAGE.",
+    "ProductPage passes image={product.image} straight through; if a product image were ever a relative path, og:image would be a relative URL (invalid for OpenGraph). Absolutize in Seo.jsx: image.startsWith('http') ? image : SITE_URL + image.",
+    "site.js hardcodes a fallback domain 'https://design-322.emergent.host'. Acceptable as a documented default, but it silently masks a missing REACT_APP_SITE_URL in production and would emit wrong canonical/og:url after a domain switch.",
+    "package.json pins react-helmet-async ^3.0.0 (installed 3.0.0). Confirmed working, but note the widely-used stable line is 2.x - verify this is an intentional/maintained release."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "not tested (frontend-only request)", "frontend": "100% of the 7 requested acceptance criteria pass; 1 crawler-facing duplication defect found" },
+  "seed_data_creation": "None. Used existing product SKU TR-T-BR-SET-002 (found and rendered correctly).",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "Not required - no auth flows tested.",
+  "context_for_next_testing_agent": "Verified PASS: robots.txt 200 with 'Disallow: /admin' + 'Sitemap: https://design-322.emergent.host/sitemap.xml'; sitemap.xml 200, valid <urlset>, contains <loc>https://design-322.emergent.host/</loc>, /katalog/trabant, /impressum (15 URLs); og-default.jpg 200, content-type image/jpeg, real dimensions 1200x630, 59984 bytes. Home: document.title exact match, description contains 'DEKRA-gepruefte', og:image absolute og-default.jpg, og:url 'https://design-322.emergent.host/'. /impressum: title 'Impressum | Kupke Tuning', canonical + og:url end with /impressum, page-specific description present. /produkt/TR-T-BR-SET-002: title 'VW-Bremskraftverstaerker-Umbausatz Trabant 601 | Kupke Tuning', og:type=product, og:image=unsplash product URL (not og-default). All assertions must use the LAST occurrence of each meta tag until the duplication bug is fixed - document.head.querySelector() returns the STALE index.html default. Testing method: Playwright page.evaluate over document.head after waiting for the page's data-testid (vehicle-tiles / static-page-impressum / product-page). Do NOT use curl for per-page tags. Frontend was restarted once during this run to clear a stale dev-server index.html cache.",
+  "rca_of_the_issue": "react-helmet-async only replaces DOM head elements that carry its ownership attribute (data-rh). The SEO defaults added directly to /app/frontend/public/index.html carry no such attribute, so on mount Helmet inserts a second, page-specific set of tags and leaves the originals in place. document.head.querySelector() and non-JS/first-match crawlers therefore read the generic default values, which is exactly the symptom the original bug report described - only now masked because a correct duplicate exists later in <head>. Reproduce: load any route, run document.head.querySelectorAll('meta[property=\"og:title\"]').length -> 2. Mitigation: mark index.html SEO tags with data-rh=\"true\" (or delete them and let <Seo> render defaults)."
+}

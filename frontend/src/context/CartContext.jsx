@@ -30,7 +30,7 @@ export const CartProvider = ({ children }) => {
       }
       return [
         ...prev,
-        { key, id: product.id, name: product.name, price: product.price, image: product.image, variant, qty },
+        { key, id: product.id, sku: product.sku || product.art_nr || '', name: product.name, price: product.price, image: product.image, variant, qty },
       ];
     });
   };

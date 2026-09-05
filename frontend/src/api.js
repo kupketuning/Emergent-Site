@@ -13,16 +13,41 @@ export const clearToken = () => localStorage.removeItem(TOKEN_KEY);
 const authHeaders = () => ({ headers: { 'X-Admin-Token': getToken() || '' } });
 
 export const api = {
-  getProducts: async (params = {}) => (await client.get('/products', { params })).data,
-  getProduct: async (id) => (await client.get(`/products/${id}`)).data,
+  // ---- Public shop (Supabase) ----
+  getProducts: async (params = {}) => (await client.get('/sb/products', { params: { is_active: true, ...params } })).data,
+  getProduct: async (id) => (await client.get(`/sb/products/${id}`)).data,
   getCategories: async () => (await client.get('/categories')).data,
-  login: async (password) => (await client.post('/admin/login', { password })).data,
-  createProduct: async (data) => (await client.post('/products', data, authHeaders())).data,
-  updateProduct: async (id, data) => (await client.put(`/products/${id}`, data, authHeaders())).data,
-  deleteProduct: async (id) => (await client.delete(`/products/${id}`, authHeaders())).data,
+
+  // ---- Checkout (Stripe) ----
+  checkout: async (data) => (await client.post('/checkout', data)).data,
+  checkoutStatus: async (sessionId) => (await client.get(`/checkout/status/${sessionId}`)).data,
+
+  // ---- Catalog ----
+  getDrawings: async (params) => (await client.get('/sb/explosion-drawings', { params })).data,
+
+  // ---- Inquiries (Preis anfragen) ----
   createInquiry: async (data) => (await client.post('/inquiries', data)).data,
   getInquiries: async () => (await client.get('/inquiries', authHeaders())).data,
   deleteInquiry: async (id) => (await client.delete(`/inquiries/${id}`, authHeaders())).data,
+
+  // ---- Admin auth ----
+  login: async (password) => (await client.post('/admin/login', { password })).data,
+
+  // ---- Admin: Supabase products ----
+  adminGetProducts: async (params = {}) => (await client.get('/sb/products', { params })).data,
+  adminGetProduct: async (id) => (await client.get(`/sb/products/${id}`)).data,
+  createSbProduct: async (data) => (await client.post('/sb/products', data, authHeaders())).data,
+  updateSbProduct: async (id, data) => (await client.put(`/sb/products/${id}`, data, authHeaders())).data,
+  deleteSbProduct: async (id) => (await client.delete(`/sb/products/${id}`, authHeaders())).data,
+  nextSku: async (params) => (await client.get('/sb/next-sku', { params, ...authHeaders() })).data,
+  uploadImages: async (files) => {
+    const fd = new FormData();
+    files.forEach((f) => fd.append('files', f));
+    return (await client.post('/sb/upload', fd, { headers: { ...authHeaders().headers, 'Content-Type': 'multipart/form-data' } })).data;
+  },
+
+  // ---- Admin: orders ----
+  getOrders: async () => (await client.get('/sb/orders', authHeaders())).data,
 };
 
 export default api;

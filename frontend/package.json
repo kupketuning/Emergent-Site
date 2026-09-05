@@ -48,6 +48,7 @@
     "react": "19.0.0",
     "react-day-picker": "8.10.1",
     "react-dom": "19.0.0",
+    "react-helmet-async": "^3.0.0",
     "react-hook-form": "7.56.2",
     "react-resizable-panels": "3.0.1",
     "react-router-dom": "7.15.0",
@@ -63,7 +64,8 @@
   "scripts": {
     "start": "craco start",
     "build": "craco build",
-    "test": "craco test"
+    "test": "craco test",
+    "prebuild": "node scripts/gen-seo.js"
   },
   "browserslist": {
     "production": [

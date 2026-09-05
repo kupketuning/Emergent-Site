@@ -9,7 +9,7 @@ import ProductCard from '../components/ProductCard';
 const ProductDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { products, getById } = useProducts();
+  const { products, getById, loading } = useProducts();
   const product = getById(id);
   const { addItem } = useCart();
   const [qty, setQty] = useState(1);
@@ -17,8 +17,12 @@ const ProductDetail = () => {
   const [selected, setSelected] = useState({});
   const [variantErr, setVariantErr] = useState('');
 
+  if (loading && !product) {
+    return <div className="max-w-[1300px] mx-auto px-4 py-20 text-center text-gray-400" data-testid="product-loading">Produkt wird geladen …</div>;
+  }
+
   if (!product) {
-    return <div className="max-w-[1300px] mx-auto px-4 py-20 text-center text-gray-500">Produkt nicht gefunden.</div>;
+    return <div className="max-w-[1300px] mx-auto px-4 py-20 text-center text-gray-500" data-testid="product-not-found">Produkt nicht gefunden.</div>;
   }
 
   const category = categories.find((c) => c.id === product.category);
@@ -54,16 +58,16 @@ const ProductDetail = () => {
     <div className="max-w-[1300px] mx-auto px-4 py-8">
       {/* Breadcrumb */}
       <div className="flex items-center flex-wrap gap-1.5 text-sm text-gray-500 mb-6">
-        <Link to="/" className="hover:text-[#e11d1d]">Startseite</Link>
+        <Link to="/" className="hover:text-[#E63946]">Startseite</Link>
         <ChevronRight className="w-4 h-4" />
-        {category && <><Link to={`/category/${category.id}`} className="hover:text-[#e11d1d]">{category.name}</Link><ChevronRight className="w-4 h-4" /></>}
+        {category && <><Link to={`/category/${category.id}`} className="hover:text-[#E63946]">{category.name}</Link><ChevronRight className="w-4 h-4" /></>}
         <span className="text-[#1a1a1a] font-semibold line-clamp-1">{product.name}</span>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
         {/* Image */}
         <div className="border border-gray-200 rounded-lg p-8 flex items-center justify-center bg-white relative">
-          {product.badge && <span className="absolute top-4 left-4 bg-[#e11d1d] text-white text-xs font-bold px-3 py-1 rounded">{product.badge}</span>}
+          {product.badge && <span className="absolute top-4 left-4 bg-[#E63946] text-white text-xs font-bold px-3 py-1 rounded">{product.badge}</span>}
           <img src={product.image} alt={product.name} className="max-h-[420px] object-contain" />
         </div>
 
@@ -73,8 +77,8 @@ const ProductDetail = () => {
           <p className="text-sm text-gray-400 mb-5">Art.-Nr.: {product.art_nr}</p>
 
           <div className="flex items-center gap-2 text-sm mb-5">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#e11d1d] inline-block" />
-            <span className="text-[#e11d1d] font-semibold">Sofort verfügbar</span>
+            <span className="w-2.5 h-2.5 rounded-full bg-[#E63946] inline-block" />
+            <span className="text-[#E63946] font-semibold">Sofort verfügbar</span>
             <span className="text-gray-500">| Lieferzeit: {product.delivery}</span>
           </div>
 
@@ -88,7 +92,7 @@ const ProductDetail = () => {
             <div className="mb-6 space-y-4">
               {variants.map((g) => (
                 <div key={g.name}>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">{g.name} <span className="text-[#e11d1d]">*</span></label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">{g.name} <span className="text-[#E63946]">*</span></label>
                   <select
                     value={selected[g.name] || ''}
                     onChange={(e) => { setSelected((s) => ({ ...s, [g.name]: e.target.value })); setVariantErr(''); }}
@@ -99,7 +103,7 @@ const ProductDetail = () => {
                   </select>
                 </div>
               ))}
-              {variantErr && <p className="text-[#e11d1d] text-sm">{variantErr}</p>}
+              {variantErr && <p className="text-[#E63946] text-sm">{variantErr}</p>}
             </div>
           )}
 
@@ -110,25 +114,25 @@ const ProductDetail = () => {
               <span className="w-12 text-center font-semibold">{qty}</span>
               <button onClick={() => setQty((q) => q + 1)} className="w-11 h-12 flex items-center justify-center text-gray-600 hover:bg-gray-100 transition-colors"><Plus className="w-4 h-4" /></button>
             </div>
-            <button onClick={handleAdd} className={`flex-1 h-12 rounded-md font-semibold text-white flex items-center justify-center gap-2 transition-colors ${added ? 'bg-[#b3161c]' : 'bg-[#e11d1d] hover:bg-[#b3161c]'}`}>
+            <button onClick={handleAdd} data-testid="pd-add-to-cart" className={`flex-1 h-12 rounded-md font-semibold text-white flex items-center justify-center gap-2 transition-colors ${added ? 'bg-[#C92F3C]' : 'bg-[#E63946] hover:bg-[#C92F3C]'}`}>
               {added ? (<><Check className="w-5 h-5" /> Im Warenkorb</>) : 'In den Warenkorb'}
             </button>
-            <button onClick={() => alert('Wunschliste folgt in Kürze!')} className="w-12 h-12 rounded-md border border-gray-300 flex items-center justify-center text-gray-500 hover:text-[#e11d1d] hover:border-[#e11d1d] transition-colors"><Heart className="w-5 h-5" /></button>
+            <button onClick={() => alert('Wunschliste folgt in Kürze!')} className="w-12 h-12 rounded-md border border-gray-300 flex items-center justify-center text-gray-500 hover:text-[#E63946] hover:border-[#E63946] transition-colors"><Heart className="w-5 h-5" /></button>
           </div>
           ) : (
           <div className="mb-6">
             <div className="bg-[#fdf2f2] border border-[#f3c6c6] rounded-md p-4 mb-3 text-sm text-[#7a1a1a]">Dieser Artikel wird individuell gefertigt bzw. konfiguriert. Fordert einfach ein unverbindliches Angebot an{variants.length > 0 ? ' – wählt vorher gern Eure Ausführung' : ''}.</div>
-            <button onClick={askForPrice} className="w-full h-12 rounded-md font-semibold text-white bg-[#e11d1d] hover:bg-[#b3161c] transition-colors flex items-center justify-center gap-2"><Mail className="w-5 h-5" /> Preis anfragen</button>
+            <button onClick={askForPrice} className="w-full h-12 rounded-md font-semibold text-white bg-[#E63946] hover:bg-[#C92F3C] transition-colors flex items-center justify-center gap-2"><Mail className="w-5 h-5" /> Preis anfragen</button>
           </div>
           )}
 
           {added && (
-            <button onClick={() => navigate('/cart')} className="text-[#e11d1d] font-semibold text-sm underline mb-6">Zum Warenkorb →</button>
+            <button onClick={() => navigate('/cart')} className="text-[#E63946] font-semibold text-sm underline mb-6">Zum Warenkorb →</button>
           )}
 
           <div className="grid grid-cols-2 gap-4 mb-6">
-            <div className="flex items-center gap-2 text-sm text-gray-600"><Truck className="w-5 h-5 text-[#e11d1d]" /> Täglicher DHL-Versand</div>
-            <div className="flex items-center gap-2 text-sm text-gray-600"><ShieldCheck className="w-5 h-5 text-[#e11d1d]" /> Passgenauigkeit garantiert</div>
+            <div className="flex items-center gap-2 text-sm text-gray-600"><Truck className="w-5 h-5 text-[#E63946]" /> Täglicher DHL-Versand</div>
+            <div className="flex items-center gap-2 text-sm text-gray-600"><ShieldCheck className="w-5 h-5 text-[#E63946]" /> Passgenauigkeit garantiert</div>
           </div>
 
           <div className="border-t border-gray-200 pt-6">

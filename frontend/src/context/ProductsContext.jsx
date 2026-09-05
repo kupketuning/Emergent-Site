@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import api from '../api';
+import { adaptProduct } from '../mock';
 
 const ProductsContext = createContext(null);
 
@@ -12,7 +13,7 @@ export const ProductsProvider = ({ children }) => {
     setLoading(true);
     try {
       const data = await api.getProducts();
-      setProducts(data);
+      setProducts((data || []).map(adaptProduct));
       setError(null);
     } catch (e) {
       setError('Produkte konnten nicht geladen werden.');
