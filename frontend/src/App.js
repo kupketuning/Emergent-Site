@@ -3,6 +3,7 @@ import './App.css';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { CartProvider } from './context/CartContext';
 import { ProductsProvider } from './context/ProductsContext';
+import { CookieConsentProvider } from './context/CookieConsentContext';
 import Layout from './components/Layout';
 import Home from './pages/Home';
 import Category from './pages/Category';
@@ -72,13 +73,15 @@ function App() {
     <div className="App">
       <ProductsProvider>
         <CartProvider>
-          <BrowserRouter>
-            <ScrollToTop />
-            <Routes>
-              <Route path="/admin" element={<Admin />} />
-              <Route path="/*" element={<ShopRoutes />} />
-            </Routes>
-          </BrowserRouter>
+          <CookieConsentProvider>
+            <BrowserRouter>
+              <ScrollToTop />
+              <Routes>
+                <Route path="/admin" element={<Admin />} />
+                <Route path="/*" element={<ShopRoutes />} />
+              </Routes>
+            </BrowserRouter>
+          </CookieConsentProvider>
         </CartProvider>
       </ProductsProvider>
     </div>

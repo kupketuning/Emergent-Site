@@ -45,7 +45,8 @@ export const STATIC_PAGES = {
     sections: [
       { heading: '1. Datenschutz auf einen Blick', paragraphs: [PLACEHOLDER] },
       { heading: '2. Verantwortliche Stelle', paragraphs: [PLACEHOLDER] },
-      { heading: '3. Ihre Rechte', paragraphs: [PLACEHOLDER] },
+      { heading: '3. Cookies', paragraphs: ['Wir setzen technisch notwendige Cookies (z. B. für den Warenkorb) sowie – nur mit Deiner Einwilligung – Analyse-Cookies zur Reichweitenmessung ein. Deine Einwilligung kannst Du jederzeit über den Link „Cookie-Einstellungen" im Footer widerrufen oder anpassen.', PLACEHOLDER] },
+      { heading: '4. Ihre Rechte', paragraphs: [PLACEHOLDER] },
     ],
   },
   batterieverordnung: {

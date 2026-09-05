@@ -3,6 +3,7 @@ import TopBar from './TopBar';
 import Header from './Header';
 import Navigation from './Navigation';
 import Footer from './Footer';
+import CookieConsent from './CookieConsent';
 
 const Layout = ({ children }) => {
   return (
@@ -14,6 +15,7 @@ const Layout = ({ children }) => {
       </div>
       <main className="flex-1">{children}</main>
       <Footer />
+      <CookieConsent />
     </div>
   );
 };

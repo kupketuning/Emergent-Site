@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import Logo from './Logo';
 import { Facebook, Instagram, Youtube, MapPin } from 'lucide-react';
 import { brands } from '../mock';
+import { useCookieConsent } from '../context/CookieConsentContext';
 
 const FooterCol = ({ title, links }) => (
   <div>
@@ -85,11 +86,23 @@ const Footer = () => {
             <a href="https://youtube.com" target="_blank" rel="noreferrer" className="hover:text-white transition-colors"><Youtube className="w-5 h-5" /></a>
           </div>
         </div>
-        <div className="mt-6 text-center text-xs text-gray-500">
-          © {new Date().getFullYear()} Kupke-Tuning. Alle Rechte vorbehalten.
+        <div className="mt-6 text-center text-xs text-gray-500 flex items-center justify-center gap-2 flex-wrap">
+          <span>© {new Date().getFullYear()} Kupke-Tuning. Alle Rechte vorbehalten.</span>
+          <span aria-hidden="true">·</span>
+          <CookieSettingsLink />
         </div>
       </div>
     </footer>
+  );
+};
+
+const CookieSettingsLink = () => {
+  const ctx = useCookieConsent();
+  if (!ctx) return null;
+  return (
+    <button onClick={() => ctx.setShowPreferences(true)} data-testid="footer-cookie-settings" className="underline hover:text-white transition-colors">
+      Cookie-Einstellungen
+    </button>
   );
 };
 
