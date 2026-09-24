@@ -100,9 +100,9 @@ export const teams = [
 
 // Soziales Engagement, kein aktives Renn-Team
 export const socialEngagement = {
-  name: 'Herztakt-Sponsoring',
+  name: 'Herztakter-Sponsoring',
   fahrzeug: 'Wartburg',
-  text: 'Mit unserem gesponserten Wartburg unterstützen wir die Aktion „Herztakt" für krebskranke Kinder – Motorsport, der etwas bewegt.',
+  text: 'Mit unserem gesponserten Wartburg unterstützen wir die Aktion „Herztakter" für krebskranke Kinder – Motorsport, der etwas bewegt.',
 };
 
 export const topbarItems = [
