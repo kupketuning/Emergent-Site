@@ -1,8 +1,8 @@
 import React, { useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { Flag, Wrench, Award, Car, ChevronLeft, ChevronRight, ArrowRight, Trophy, CalendarCheck, BadgeCheck, Cog, Disc } from 'lucide-react';
+import { Flag, Wrench, Award, Car, ChevronLeft, ChevronRight, ArrowRight, CalendarCheck, BadgeCheck, Cog, Disc, Youtube, Instagram } from 'lucide-react';
 import ProductCard from '../components/ProductCard';
-import { features, teams, IMG } from '../mock';
+import { features, IMG } from '../mock';
 import { useProducts } from '../context/ProductsContext';
 import VehicleTiles from '../components/VehicleTiles';
 import Seo from '../components/Seo';
@@ -35,7 +35,7 @@ const Home = () => {
             Ersatzteile und Tuningteile für Trabant, Wartburg, Barkas, VW und Opel
           </p>
           <p className="text-[#2EC4B6] text-lg md:text-2xl font-bold mb-8 max-w-2xl" data-testid="hero-proof">
-            Über 2.000 km Nordschleife-Erfahrung mit unserem Fahrzeug.
+            Über 2000 km Nordschleifen-Erfahrung mit unserem Fahrzeug
           </p>
           <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto justify-center">
             <Link to="/katalog/trabant" className="inline-flex items-center justify-center gap-2 bg-[#E63946] hover:bg-[#C92F3C] text-white font-semibold px-8 py-3.5 rounded-md transition-colors uppercase tracking-wide" data-testid="hero-cta-eigenfertigung">
@@ -54,17 +54,17 @@ const Home = () => {
           <div className="flex flex-col items-center px-4">
             <CalendarCheck className="w-9 h-9 text-[#E63946] mb-3" strokeWidth={1.7} />
             <p className="font-logo text-xl font-bold text-[#333333] uppercase">Seit 1995</p>
-            <p className="text-sm text-gray-600 mt-1 max-w-[260px]">Über drei Jahrzehnte Erfahrung im Trabant-Motorsport</p>
+            <p className="text-sm text-gray-600 mt-1 max-w-[260px]">Über Jahrzehnte Erfahrung im Trabant-Motorsport</p>
           </div>
           <div className="flex flex-col items-center px-4 md:border-x border-gray-200">
             <BadgeCheck className="w-9 h-9 text-[#2EC4B6] mb-3" strokeWidth={1.7} />
-            <p className="font-logo text-xl font-bold text-[#333333] uppercase">DEKRA-Gutachten</p>
-            <p className="text-sm text-gray-600 mt-1 max-w-[260px]">Für unsere Bauteile liegen Prüfgutachten der DEKRA vor</p>
+            <p className="font-logo text-xl font-bold text-[#333333] uppercase">DEKRA-Begutachtung</p>
+            <p className="text-sm text-gray-600 mt-1 max-w-[260px]">Unsere Bauteile wurden durch die DEKRA begutachtet</p>
           </div>
           <div className="flex flex-col items-center px-4">
             <Cog className="w-9 h-9 text-[#E63946] mb-3" strokeWidth={1.7} />
             <p className="font-logo text-xl font-bold text-[#333333] uppercase">Eigene Fertigung</p>
-            <p className="text-sm text-gray-600 mt-1 max-w-[260px]">Sonderanfertigungen und Motorenbau aus eigener Werkstatt</p>
+            <p className="text-sm text-gray-600 mt-1 max-w-[260px]">Kleinserien und Sonderfertigungen Made in Sachsen</p>
           </div>
         </div>
       </section>
@@ -85,8 +85,16 @@ const Home = () => {
           </div>
           <div>
             <span className="inline-flex items-center gap-2 text-[#E63946] text-sm font-bold uppercase tracking-widest mb-3"><Flag className="w-4 h-4" /> Aus dem Rennalltag</span>
-            <h2 className="font-logo text-3xl md:text-4xl font-bold text-[#17191d] uppercase mb-4">Erlebe uns im Motorsport</h2>
+            <h2 className="font-logo text-3xl md:text-4xl font-bold text-[#17191d] uppercase mb-4">Folge unserem Kanal und verpasse keine Neuigkeiten</h2>
             <p className="text-gray-600 mb-6 max-w-md">Ein Blick hinter die Kulissen: unsere Teams, unsere Technik und unsere Leidenschaft für den Trabant-Motorsport – hautnah erlebt.</p>
+            <div className="flex items-center gap-4 mb-6">
+              <a href="https://youtube.com" target="_blank" rel="noreferrer" data-testid="home-video-youtube" className="w-11 h-11 rounded-full bg-[#f4f5f7] border border-gray-200 flex items-center justify-center text-[#17191d] hover:bg-[#E63946] hover:text-white hover:border-[#E63946] transition-colors">
+                <Youtube className="w-5 h-5" />
+              </a>
+              <a href="https://instagram.com" target="_blank" rel="noreferrer" data-testid="home-video-instagram" className="w-11 h-11 rounded-full bg-[#f4f5f7] border border-gray-200 flex items-center justify-center text-[#17191d] hover:bg-[#E63946] hover:text-white hover:border-[#E63946] transition-colors">
+                <Instagram className="w-5 h-5" />
+              </a>
+            </div>
             <Link to="/team" className="inline-flex items-center gap-2 text-[#E63946] font-semibold hover:underline" data-testid="home-video-team-link">
               Alle Teams entdecken <ArrowRight className="w-4 h-4" />
             </Link>
@@ -150,42 +158,6 @@ const Home = () => {
                 </div>
               );
             })}
-          </div>
-        </div>
-      </section>
-
-      {/* Race teams */}
-      <section className="bg-[#17191d] text-white">
-        <div className="max-w-[1300px] mx-auto px-4 py-16">
-          <div className="text-center mb-10">
-            <span className="inline-flex items-center gap-2 text-[#E63946] text-sm font-bold uppercase tracking-widest mb-3"><Flag className="w-4 h-4" /> Kupke-Tuning Motorsport</span>
-            <h2 className="font-logo text-3xl md:text-4xl font-bold uppercase">Diese Teams fahren mit uns</h2>
-            <p className="text-gray-400 mt-3 max-w-2xl mx-auto">Wir unterstützen junge Teams in ihrer Entwicklung – mit unseren speziell entwickelten Tuningteilen für den Trabant.</p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-            {teams.slice(0, 4).map((t) => (
-              <div key={t.name} className="bg-white/5 border border-white/10 rounded-lg p-5 hover:border-[#E63946]/60 transition-colors">
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="w-9 h-9 rounded-full bg-[#E63946] flex items-center justify-center"><Trophy className="w-5 h-5" /></span>
-                  <div>
-                    <p className="font-logo font-bold text-lg leading-none">{t.name}</p>
-                    <p className="text-xs text-gray-400">{t.ort}</p>
-                  </div>
-                </div>
-                <p className="text-[#E63946] text-xs font-bold uppercase tracking-wide mb-1">{t.rennserie || t.disziplin}</p>
-                <p className="font-semibold text-sm mb-2">{t.fahrzeug}</p>
-                <p className="text-gray-400 text-sm leading-relaxed">{t.text}</p>
-              </div>
-            ))}
-          </div>
-          <div className="text-center mt-10">
-            <Link
-              to="/team"
-              className="inline-flex items-center gap-2 border-2 border-white/30 hover:border-[#E63946] hover:text-[#E63946] text-white font-semibold px-8 py-3 rounded-md uppercase tracking-wide transition-colors"
-              data-testid="home-teams-cta"
-            >
-              Alle Teams ansehen <ArrowRight className="w-4 h-4" />
-            </Link>
           </div>
         </div>
       </section>
