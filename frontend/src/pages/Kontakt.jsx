@@ -46,7 +46,7 @@ const Kontakt = () => {
 
   return (
     <div className="max-w-[1300px] mx-auto px-4 py-8">
-      <Seo title="Kontakt & Anfrage" description="Kontaktformular, Kontaktdaten und Lageradresse von Kupke Tuning in Lengenfeld. Fordern Sie ein persönliches Angebot an." path="/kontakt" />
+      <Seo title="Kontakt & Anfrage" description="Kontaktformular, Kontaktdaten und Lageradresse von Kupke Tuning in Heinsdorfergrund. Fordern Sie ein persönliches Angebot an." path="/kontakt" />
       <div className="flex items-center gap-1.5 text-sm text-gray-500 mb-6">
         <Link to="/" className="hover:text-[#E63946]">Startseite</Link>
         <ChevronRight className="w-4 h-4" />
@@ -111,8 +111,8 @@ const Kontakt = () => {
           <div className="bg-[#17191d] text-white rounded-lg p-6">
             <h3 className="font-logo text-xl font-bold uppercase mb-4">Kupke-Tuning</h3>
             <div className="space-y-4 text-sm">
-              <div className="flex items-start gap-3"><MapPin className="w-5 h-5 text-[#E63946] shrink-0" /><span><strong>Lager & Abholung</strong><br/>[Straße & Hausnummer]<br/>08485 Lengenfeld, Sachsen</span></div>
-              <div className="flex items-start gap-3"><Phone className="w-5 h-5 text-[#E63946] shrink-0" /><span>[Telefonnummer]<br/>Beratung nach Vereinbarung</span></div>
+              <div className="flex items-start gap-3"><MapPin className="w-5 h-5 text-[#E63946] shrink-0" /><span><strong>Lager & Abholung</strong><br/>Kaltes Feld 19<br/>08468 Heinsdorfergrund, Sachsen</span></div>
+              <div className="flex items-start gap-3"><Phone className="w-5 h-5 text-[#E63946] shrink-0" /><span>0172 6005435<br/>Beratung nach Vereinbarung</span></div>
               <div className="flex items-start gap-3"><Mail className="w-5 h-5 text-[#E63946] shrink-0" /><span>shop@kupketuning.de</span></div>
             </div>
           </div>

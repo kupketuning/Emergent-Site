@@ -110,7 +110,7 @@ const Checkout = () => {
               <label className={`flex items-center gap-3 border rounded-md p-4 cursor-pointer transition-colors ${shipping === 'ABHOLUNG' ? 'border-[#E63946] bg-[#fdf2f2]' : 'border-gray-200 hover:border-gray-300'}`} data-testid="checkout-shipping-abholung">
                 <input type="radio" name="shipping" checked={shipping === 'ABHOLUNG'} onChange={() => setShipping('ABHOLUNG')} className="accent-[#E63946]" />
                 <Store className="w-5 h-5 text-[#E63946]" />
-                <span className="flex-1 font-semibold text-[#1a1a1a]">Selbstabholung in Lengenfeld</span>
+                <span className="flex-1 font-semibold text-[#1a1a1a]">Selbstabholung in Heinsdorfergrund</span>
                 <span className="font-bold text-[#008d36]">Kostenlos</span>
               </label>
             </div>

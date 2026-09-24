@@ -91,11 +91,11 @@ export const adaptProduct = (p) => {
 export const brands = ['KONI', 'SPAX', 'EIBACH', 'H&R', 'K&N', 'BORBET', 'AZEV', 'HEIGO', 'WIECHERS', 'SANDTLER', 'ISA-RACING', 'RH'];
 
 export const teams = [
-  { name: 'Team Kupke', ort: 'Lengenfeld', disziplin: 'Bergrennen / Slalom', rennserie: 'Bergrennen / Slalom', fahrzeug: 'Audi S3', text: '1,8-Liter-Turbomotor, ca. 270 PS, 6-Gang-Getriebe mit Allradantrieb – unser gelber S3 als Blickfang.', instagram: '', youtube: '' },
+  { name: 'Team Kupke', ort: 'Heinsdorfergrund', disziplin: 'Bergrennen / Slalom', rennserie: 'Bergrennen / Slalom', fahrzeug: 'Audi S3', text: '1,8-Liter-Turbomotor, ca. 270 PS, 6-Gang-Getriebe mit Allradantrieb – unser gelber S3 als Blickfang.', instagram: '', youtube: '' },
   { name: 'Team Rudolph', ort: 'Chemnitz', disziplin: 'Rallye', rennserie: 'Rallye', fahrzeug: 'Trabant 1300 RS', text: '1,3-Liter-Motor, ca. 75 PS, 5-Gang-VW-Getriebe, GTI-Bremse. Sehr gleichmäßiger Fahrer mit starken Gesamtresultaten.', instagram: '', youtube: '' },
   { name: 'Team Heide', ort: 'Greiz', disziplin: 'Rundstrecke / Slalom / Bergrennen', rennserie: 'Rundstrecke / Slalom / Bergrennen', fahrzeug: 'Trabant 1300', text: 'ca. 130 PS, extreme Gewichtserleichterung – fahrfertig nur 580 kg, KUPKE-KONI-Fahrwerk, Gruppe-A-Abgasanlage.', instagram: '', youtube: '' },
   { name: 'Team Werner', ort: 'Zeulenroda', disziplin: 'Rundstrecke / Slalom / Bergrennen', rennserie: 'Rundstrecke / Slalom / Bergrennen', fahrzeug: 'Trabant 1300', text: 'ca. 100 PS, Gruppe-A-Abgasanlage, KUPKE-KONI-Gewindefahrwerk, 601-er Optik, Gewichtserleichterung.', instagram: '', youtube: '' },
-  { name: 'Frauenteam', ort: 'Lengenfeld', disziplin: 'Motorsport', rennserie: 'Motorsport', fahrzeug: 'Trabant mit Scheibenbremse', text: 'Ein reines Frauenteam am Steuer eines Trabant mit KUPKE-Scheibenbremsen-Umrüstung – Motorsport-Power ganz ohne Vorurteile.', instagram: '', youtube: '' },
+  { name: 'Frauenteam', ort: 'Heinsdorfergrund', disziplin: 'Motorsport', rennserie: 'Motorsport', fahrzeug: 'Trabant mit Scheibenbremse', text: 'Ein reines Frauenteam am Steuer eines Trabant mit KUPKE-Scheibenbremsen-Umrüstung – Motorsport-Power ganz ohne Vorurteile.', instagram: '', youtube: '' },
 ];
 
 // Soziales Engagement, kein aktives Renn-Team
@@ -106,14 +106,14 @@ export const socialEngagement = {
 };
 
 export const topbarItems = [
-  { icon: 'Truck', text: 'Versand deutschlandweit & Selbstabholung in Lengenfeld' },
+  { icon: 'Truck', text: 'Versand deutschlandweit & Selbstabholung in Heinsdorfergrund' },
   { icon: 'Wrench', text: 'Eigenentwickelte Trabant-Tuningteile' },
   { icon: 'Trophy', text: 'Erprobt im aktiven Motorsport' },
 ];
 
 export const features = [
   { icon: 'Flag', title: 'Über drei Jahrzehnte Motorsport-Erfahrung', text: 'Der Trabant im Rennsport: Ralley, Berg & Slalom – seit 1995.' },
-  { icon: 'Wrench', title: 'Eigenentwicklung & Fertigung', text: 'Spezialteile für Trabant 1.1 & 601 – entwickelt und gefertigt in Lengenfeld.' },
+  { icon: 'Wrench', title: 'Eigenentwicklung & Fertigung', text: 'Spezialteile für Trabant 1.1 & 601 – entwickelt und gefertigt in Heinsdorfergrund.' },
   { icon: 'Award', title: 'Starke Marken-Partner', text: 'KONI, EIBACH, H&R, BORBET, K&N, SANDTLER u.v.m. – schnell und unkompliziert.' },
   { icon: 'Car', title: 'Komplettfahrzeug-Aufbau', text: 'Rennfahrzeuge nach Kundenwunsch und nach ONS-Vorgaben.' },
 ];

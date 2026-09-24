@@ -48,7 +48,7 @@ const Footer = () => {
             <p className="text-gray-300 text-sm mb-4 mt-4">Ihr Partner für den Trabant im Rennsport und auf der Straße – seit 1995.</p>
             <div className="flex items-start gap-2 text-gray-300 text-sm mb-3">
               <MapPin className="w-5 h-5 text-[#E63946] shrink-0" />
-              <span>Kupke Tuning<br/>[Straße & Hausnummer]<br/>08485 Lengenfeld, Sachsen</span>
+              <span>Kupke Tuning<br/>Kaltes Feld 19<br/>08468 Heinsdorfergrund, Sachsen</span>
             </div>
             <Link to="/kontakt" className="inline-block bg-[#E63946] hover:bg-[#C92F3C] text-white text-sm font-semibold px-6 py-3 rounded-md transition-colors uppercase tracking-wide">
               Kontakt aufnehmen
