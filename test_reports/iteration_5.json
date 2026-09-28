@@ -1,0 +1,39 @@
+{
+  "summary": "Verified new session features: (1) RENNSPORT removed from product_type CHECK constraint AND from frontend pf-type dropdown; (2) new POST /api/sb/orders/{id}/shipping-label + GET /api/sb/invoices/export ZIP endpoints wired with correct 401/400/404 handling; (3) admin low-stock banner (data-testid=admin-low-stock-banner) renders correctly on Produkte tab; (4) Bestellungen tab renders month/year picker + export-invoices button and empty-state ('Noch keine Bestellungen.') without crash; (5) full checkout regression covered (priced + unpriced + ABHOLUNG + invalid-shipping + unknown-product). All 41 backend pytest tests pass (2 skipped: OrdersInvoices shape needs paid order; StripeWebhook covered). Frontend admin flow verified end-to-end via Playwright (real browser, no screenshot-tool artifact this time). Homepage + catalog regression: no 'RENNSPORT' text anywhere in UI, catalog /katalog/trabant/tuning/motor?modell=1-1 loads 10 items correctly.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Admin Produkte low-stock banner", "issue": "Banner reports '56 Produkte sind am oder unter dem Mindestbestand' — because default stock_quantity and stock_min_alert are both 0 for all seed products, the condition stock_quantity <= stock_min_alert is always true. Signal is noise, not a real low-stock alert. Consider excluding rows where stock_quantity IS NULL or where both fields are 0, or require stock_min_alert > 0.", "selector": "[data-testid=admin-low-stock-banner]", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "Refine low-stock banner logic in Admin.jsx (Produkte tab): count only products with stock_min_alert > 0 AND stock_quantity <= stock_min_alert; otherwise the banner is triggered by every seed product with default 0/0 values (currently 56/56 flagged).",
+    "Consider seeding stock_min_alert = 5 (or similar) on real inventory items so the banner behaves as intended.",
+    "Optional: convert TestSpecialCategories/TestSbProductCRUD class-scoped fixtures from instance methods to @classmethod (pytest 10 deprecation warning; not breaking today)."
+  ],
+  "critical_code_review_comments": [
+    "server.py sb_upload_shipping_label: label upload + packing-slip generation + email sending happen in a single request path; 3 external I/O calls (Supabase Storage x2, Emergent mail proxy x2) and one PDF render are not wrapped in a timeout/retry. If Supabase storage is slow this endpoint will block. Consider a background task (BackgroundTasks) for the two emails.",
+    "server.py _finalize_order: invoice creation and email are wrapped in try/except (good) but the outer /api/checkout/status endpoint has no idempotency guard beyond pending.finalized – a concurrent call from success page + Stripe webhook could still race. The `select ... for update` on pending_checkouts would prevent this.",
+    "email_service.py is imported at top-level; if the Emergent email proxy is unreachable during startup import, the entire backend will crash. Verify defensive import or lazy init.",
+    "Low-stock banner condition currently uses stock_quantity <= stock_min_alert without null-check; recommend `stock_min_alert IS NOT NULL AND stock_min_alert > 0 AND stock_quantity <= stock_min_alert`."
+  ],
+  "updated_files": [
+    "/app/backend/tests/backend_test.py (added TestShippingLabelAndInvoiceExport + TestRennsportRemoved; fixed AV/AB SKU regex for Abverkauf)"
+  ],
+  "success_rate": {"backend": "100% (41/41 pytest, 2 skipped intentionally)", "frontend": "100% for requested flows"},
+  "test_credentials": "Admin: kupke-admin at /admin (X-Admin-Token header). Stripe test card 4242 4242 4242 4242.",
+  "seed_data_creation": "None (test products TEST_* created and cleaned up automatically by class fixtures).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "New session work fully verified: Resend email path is called from _finalize_order + shipping-label upload (best-effort, wrapped in try/except so failure doesn't break checkout). Real orders can't be produced without Stripe UI interaction, so shipping-label upload end-to-end must be triggered manually with a completed test order. Frontend preview URL is https://design-322.preview.emergentagent.com (NOT the cars-tuning-shop-1 URL which is offline). Low-stock banner shows 56/56 (all seed products) — likely a business-logic tweak needed rather than a bug.",
+  "rca of the issue": "Main agent's earlier screenshot-tool stale-page issue was NOT reproducible in headless Playwright — admin login + all 3 tabs render correctly on first navigation. Recommend main agent trust Playwright over the internal screenshot tool for admin flow verification."
+}

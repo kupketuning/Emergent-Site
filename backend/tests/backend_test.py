@@ -365,7 +365,7 @@ class TestSpecialCategories:
         r = client.get(f"{BASE_URL}/api/sb/next-sku", headers=HEADERS_ADMIN,
                        params={"special_category": "ABVERKAUF"}, timeout=30)
         assert r.status_code == 200, r.text
-        assert re.match(r"^AB-\d{3}$", r.json()["sku"]), r.json()
+        assert re.match(r"^AV-\d{3}$", r.json()["sku"]), r.json()
 
     def test_create_normteil_and_filter(self, client):
         payload = {"name": "TEST_Normteil Schraube M8", "special_category": "NORMTEIL",
@@ -392,7 +392,7 @@ class TestSpecialCategories:
         assert r.status_code == 200, r.text
         prod = r.json()
         TestSpecialCategories.created.append(prod["id"])
-        assert re.match(r"^AB-\d{3}$", prod["sku"]), prod["sku"]
+        assert re.match(r"^AV-\d{3}$", prod["sku"]), prod["sku"]
 
     def test_create_trabant_with_vehicle_model(self, client):
         payload = {"name": "TEST_Trabant P601 Motorteil", "vehicle": "TRABANT", "vehicle_model": "P601",
@@ -412,3 +412,70 @@ class TestSpecialCategories:
         yield
         for pid in list(TestSpecialCategories.created):
             client.delete(f"{BASE_URL}/api/sb/products/{pid}", headers=HEADERS_ADMIN, timeout=60)
+
+
+# ---------------- New session: shipping-label + ZIP invoice export + RENNSPORT removed ----------------
+class TestShippingLabelAndInvoiceExport:
+    def test_shipping_label_requires_admin(self, client):
+        import io
+        r = requests.post(
+            f"{BASE_URL}/api/sb/orders/00000000-0000-0000-0000-000000000000/shipping-label",
+            files={"file": ("test.pdf", io.BytesIO(b"%PDF-1.4\n%dummy"), "application/pdf")},
+            timeout=30)
+        assert r.status_code == 401, r.text
+
+    def test_shipping_label_404_for_unknown_order(self, client):
+        import io
+        r = requests.post(
+            f"{BASE_URL}/api/sb/orders/00000000-0000-0000-0000-000000000000/shipping-label",
+            headers={"X-Admin-Token": ADMIN_PASSWORD},
+            files={"file": ("test.pdf", io.BytesIO(b"%PDF-1.4\n%dummy"), "application/pdf")},
+            timeout=60)
+        assert r.status_code == 404, r.text
+
+    def test_invoice_export_requires_admin(self, client):
+        r = client.get(f"{BASE_URL}/api/sb/invoices/export?year=2026&month=1", timeout=30)
+        assert r.status_code == 401
+
+    def test_invoice_export_invalid_month(self, client):
+        r = client.get(f"{BASE_URL}/api/sb/invoices/export?year=2026&month=13",
+                       headers=HEADERS_ADMIN, timeout=30)
+        assert r.status_code == 400
+
+    def test_invoice_export_returns_zip_or_404(self, client):
+        # If invoices exist for Jan 2026 -> 200 zip; otherwise 404 (documented expected behavior)
+        r = client.get(f"{BASE_URL}/api/sb/invoices/export?year=2026&month=1",
+                       headers=HEADERS_ADMIN, timeout=90)
+        assert r.status_code in (200, 404), r.text
+        if r.status_code == 200:
+            assert r.headers.get("content-type", "").startswith("application/zip")
+            assert r.content[:2] == b"PK", "response is not a zip file"
+
+    def test_orders_have_shipping_columns(self, client):
+        """Every order row must expose shipping_label_url + packing_slip_url keys (may be null)."""
+        r = client.get(f"{BASE_URL}/api/sb/orders", headers=HEADERS_ADMIN, timeout=60)
+        assert r.status_code == 200
+        orders = r.json()
+        if not orders:
+            pytest.skip("no orders")
+        for o in orders:
+            assert "shipping_label_url" in o
+            assert "packing_slip_url" in o
+
+
+class TestRennsportRemoved:
+    def test_no_rennsport_products_in_db(self, client):
+        """After migration the CHECK constraint only allows ORIGINAL/TUNING."""
+        r = client.get(f"{BASE_URL}/api/sb/products", timeout=60)
+        assert r.status_code == 200
+        for p in r.json():
+            assert p.get("product_type") != "RENNSPORT", f"RENNSPORT still present in {p.get('sku')}"
+
+    def test_cannot_create_rennsport_product(self, client):
+        payload = {"name": "TEST_Rennsport disallowed", "vehicle": "TRABANT",
+                   "product_type": "RENNSPORT", "assembly_group": "MOTOR",
+                   "price_net": 1, "tax_rate": 19, "is_active": True}
+        r = client.post(f"{BASE_URL}/api/sb/products", headers=HEADERS_ADMIN,
+                        json=payload, timeout=60)
+        # DB CHECK constraint must reject -> 500 (asyncpg CheckViolation) or 400
+        assert r.status_code >= 400, f"expected failure, got {r.status_code}: {r.text}"

@@ -180,7 +180,7 @@ const Admin = () => {
     }
   };
 
-  const lowStockProducts = products.filter((p) => (p.stock_quantity ?? 0) <= (p.stock_min_alert ?? 5));
+  const lowStockProducts = products.filter((p) => (p.stock_min_alert ?? 0) > 0 && (p.stock_quantity ?? 0) <= p.stock_min_alert);
 
   if (!authed) {
     return (
@@ -264,7 +264,7 @@ const Admin = () => {
                   </thead>
                   <tbody>
                     {products.map((p) => {
-                      const low = (p.stock_quantity ?? 0) <= (p.stock_min_alert ?? 5);
+                      const low = (p.stock_min_alert ?? 0) > 0 && (p.stock_quantity ?? 0) <= p.stock_min_alert;
                       return (
                         <tr key={p.id} className="border-t border-gray-100 hover:bg-gray-50" data-testid={`admin-product-row-${p.sku}`}>
                           <td className="px-4 py-2"><img src={(p.images && p.images[0]) || 'https://via.placeholder.com/48'} alt="" className="w-12 h-12 object-cover rounded" /></td>
