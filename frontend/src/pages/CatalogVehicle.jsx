@@ -1,11 +1,12 @@
 import React, { useMemo } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
-import { ChevronRight, Wrench, ShieldCheck, Trophy, Boxes, Tag } from 'lucide-react';
+import { ChevronRight, Wrench, ShieldCheck, Boxes, Tag } from 'lucide-react';
 import { useProducts } from '../context/ProductsContext';
 import { vehicleBySlug, TYPES, MODELS } from '../lib/catalog';
+import { CatalogTile } from '../components/CatalogTile';
 import Seo from '../components/Seo';
 
-const TYPE_ICON = { ORIGINAL: Wrench, TUNING: ShieldCheck, RENNSPORT: Trophy };
+const TYPE_ICON = { ORIGINAL: Wrench, TUNING: ShieldCheck };
 const SHOW_SPECIAL_BUTTONS = ['TRABANT', 'WARTBURG'];
 
 const CatalogVehicle = () => {
@@ -29,7 +30,7 @@ const CatalogVehicle = () => {
 
   return (
     <div className="max-w-[1300px] mx-auto px-4 py-8" data-testid="catalog-vehicle-page">
-      <Seo title={`${v.name} — Ersatzteile & Tuning`} description={`Ersatzteile und Tuningteile für ${v.name} bei Kupke Tuning. Original, Tuning und Rennsport – DEKRA-geprüft.`} path={`/katalog/${v.slug}`} />
+      <Seo title={`${v.name} — Ersatzteile & Tuning`} description={`Ersatzteile und Tuningteile für ${v.name} bei Kupke Tuning. Original und Tuning – DEKRA-geprüft.`} path={`/katalog/${v.slug}`} />
       <div className="flex items-center gap-1.5 text-sm text-gray-500 mb-6">
         <Link to="/" className="hover:text-[#E63946]">Startseite</Link>
         <ChevronRight className="w-4 h-4" />
@@ -48,17 +49,9 @@ const CatalogVehicle = () => {
         <>
           <h1 className="font-logo text-3xl md:text-4xl font-bold text-[#1a1a1a] mb-2 uppercase">{v.name} — Typ wählen</h1>
           <p className="text-gray-500 mb-10">Für welchen {v.name}-Typ suchst Du Teile?</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5" data-testid="model-tiles">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5" data-testid="model-tiles">
             {models.map((m) => (
-              <Link
-                key={m.slug}
-                to={`/katalog/${v.slug}?modell=${m.slug}`}
-                data-testid={`model-tile-${m.slug}`}
-                className="group border border-gray-200 rounded-xl p-8 hover:border-[#E63946] hover:shadow-lg transition-all flex flex-col items-start"
-              >
-                <span className="font-logo text-2xl font-bold text-[#17191d] uppercase group-hover:text-[#E63946] transition-colors">{v.name} {m.name}</span>
-                <span className="mt-4 inline-flex items-center gap-1 text-[#E63946] font-semibold text-sm">Weiter <ChevronRight className="w-4 h-4" /></span>
-              </Link>
+              <CatalogTile key={m.slug} to={`/katalog/${v.slug}?modell=${m.slug}`} title={`${v.name} ${m.name}`} testId={`model-tile-${m.slug}`} />
             ))}
           </div>
         </>
@@ -72,20 +65,18 @@ const CatalogVehicle = () => {
           ) : available.length === 0 ? (
             <p className="text-gray-400 py-16 text-center">Für dieses Fahrzeug sind aktuell keine Teile hinterlegt.</p>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               {available.map((t) => {
-                const Icon = TYPE_ICON[t.code] || Wrench;
                 const count = products.filter((p) => matches(p) && p.type_code === t.code).length;
                 return (
-                  <Link key={t.slug} to={`/katalog/${v.slug}/${t.slug}${modellSlug ? `?modell=${modellSlug}` : ''}`} data-testid={`type-tile-${t.slug}`}
-                    className="group border border-gray-200 rounded-xl p-8 hover:border-[#E63946] hover:shadow-lg transition-all flex flex-col items-start">
-                    <span className="w-14 h-14 rounded-full bg-[#E63946]/10 flex items-center justify-center mb-4 group-hover:bg-[#E63946]/20 transition-colors">
-                      <Icon className="w-7 h-7 text-[#E63946]" strokeWidth={1.8} />
-                    </span>
-                    <span className="font-logo text-2xl font-bold text-[#17191d] uppercase group-hover:text-[#E63946] transition-colors">{t.name}</span>
-                    <span className="text-sm text-gray-500 mt-1">{count} Artikel</span>
-                    <span className="mt-4 inline-flex items-center gap-1 text-[#E63946] font-semibold text-sm">Ansehen <ChevronRight className="w-4 h-4" /></span>
-                  </Link>
+                  <CatalogTile
+                    key={t.slug}
+                    to={`/katalog/${v.slug}/${t.slug}${modellSlug ? `?modell=${modellSlug}` : ''}`}
+                    icon={TYPE_ICON[t.code] || Wrench}
+                    title={t.name}
+                    subtitle={`${count} Artikel`}
+                    testId={`type-tile-${t.slug}`}
+                  />
                 );
               })}
             </div>

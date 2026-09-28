@@ -37,6 +37,11 @@ const Admin = () => {
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
+  const [labelUploadingId, setLabelUploadingId] = useState(null);
+  const now = new Date();
+  const [exportYear, setExportYear] = useState(now.getFullYear());
+  const [exportMonth, setExportMonth] = useState(now.getMonth() + 1);
+  const [exporting, setExporting] = useState(false);
 
   const loadProducts = useCallback(async () => {
     setLoadingP(true);
@@ -142,6 +147,41 @@ const Admin = () => {
     try { await api.deleteInquiry(id); await loadInquiries(); } catch { /* ignore */ }
   };
 
+  const uploadLabel = async (order, e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setLabelUploadingId(order.id);
+    try {
+      await api.uploadShippingLabel(order.id, file);
+      await loadOrders();
+      setMsg(`Versandlabel für ${order.order_number} hochgeladen – Kunde & Lager wurden benachrichtigt.`);
+    } catch {
+      setMsg('Upload des Versandlabels fehlgeschlagen.');
+    } finally {
+      setLabelUploadingId(null);
+      e.target.value = '';
+    }
+  };
+
+  const exportInvoices = async () => {
+    setExporting(true); setMsg('');
+    try {
+      const blob = await api.exportInvoicesZip(exportYear, exportMonth);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Rechnungen_${exportYear}-${String(exportMonth).padStart(2, '0')}.zip`;
+      document.body.appendChild(a); a.click(); a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      setMsg('Keine Rechnungen für diesen Zeitraum gefunden oder Export fehlgeschlagen.');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const lowStockProducts = products.filter((p) => (p.stock_quantity ?? 0) <= (p.stock_min_alert ?? 5));
+
   if (!authed) {
     return (
       <div className="min-h-screen bg-[#17191d] flex items-center justify-center px-4">
@@ -201,6 +241,12 @@ const Admin = () => {
               </div>
               <button onClick={openCreate} className="flex items-center gap-2 bg-[#E63946] hover:bg-[#C92F3C] text-white font-semibold px-4 py-2.5 rounded-md transition-colors" data-testid="admin-new-product"><Plus className="w-5 h-5" /> Neues Produkt</button>
             </div>
+            {lowStockProducts.length > 0 && (
+              <div className="mb-6 flex items-center gap-2 bg-[#fdecec] border border-[#f3c6c6] text-[#C92F3C] text-sm px-4 py-2.5 rounded-md" data-testid="admin-low-stock-banner">
+                <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                <span><strong>{lowStockProducts.length} Produkt{lowStockProducts.length !== 1 ? 'e' : ''}</strong> {lowStockProducts.length !== 1 ? 'sind' : 'ist'} am oder unter dem Mindestbestand – bitte Nachbestellung prüfen.</span>
+              </div>
+            )}
             <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -252,15 +298,33 @@ const Admin = () => {
 
         {tab === 'bestellungen' && (
           <>
-            <h1 className="font-logo text-2xl font-bold uppercase mb-1">Bestellungen</h1>
-            <p className="text-gray-500 text-sm mb-6">{orders.length} Bestellungen</p>
+            <div className="flex items-center justify-between mb-1 flex-wrap gap-4">
+              <div>
+                <h1 className="font-logo text-2xl font-bold uppercase mb-1">Bestellungen</h1>
+                <p className="text-gray-500 text-sm">{orders.length} Bestellungen</p>
+              </div>
+              <div className="flex items-end gap-2 bg-white border border-gray-200 rounded-lg p-3">
+                <Field label="Monat">
+                  <select value={exportMonth} onChange={(e) => setExportMonth(Number(e.target.value))} className="inp" data-testid="admin-export-month">
+                    {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => <option key={m} value={m}>{String(m).padStart(2, '0')}</option>)}
+                  </select>
+                </Field>
+                <Field label="Jahr">
+                  <input type="number" value={exportYear} onChange={(e) => setExportYear(Number(e.target.value))} className="inp w-24" data-testid="admin-export-year" />
+                </Field>
+                <button onClick={exportInvoices} disabled={exporting} className="flex items-center gap-2 h-[42px] bg-[#17191d] hover:bg-black text-white font-semibold px-4 rounded-md disabled:opacity-60" data-testid="admin-export-invoices-btn">
+                  {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4 rotate-180" />} Rechnungen als ZIP
+                </button>
+              </div>
+            </div>
+            <div className="mb-6" />
             {orders.length === 0 ? (
               <div className="bg-white border border-gray-200 rounded-lg p-10 text-center text-gray-400"><ShoppingBag className="w-12 h-12 mx-auto mb-3" /> Noch keine Bestellungen.</div>
             ) : (
               <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
                 <table className="w-full text-sm">
                   <thead className="bg-gray-100 text-gray-600 text-left">
-                    <tr><th className="px-4 py-3">Nr.</th><th className="px-4 py-3">Datum</th><th className="px-4 py-3">Kunde</th><th className="px-4 py-3">Versand</th><th className="px-4 py-3">Summe</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Rechnung</th></tr>
+                    <tr><th className="px-4 py-3">Nr.</th><th className="px-4 py-3">Datum</th><th className="px-4 py-3">Kunde</th><th className="px-4 py-3">Versand</th><th className="px-4 py-3">Summe</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Rechnung</th><th className="px-4 py-3">Versandlabel</th></tr>
                   </thead>
                   <tbody>
                     {orders.map((o) => (
@@ -275,6 +339,19 @@ const Admin = () => {
                           {o.invoice_pdf_url
                             ? <a href={o.invoice_pdf_url} target="_blank" rel="noreferrer" className="text-[#E63946] font-semibold hover:underline" data-testid={`admin-invoice-${o.order_number}`}>{o.invoice_number} ↓</a>
                             : <span className="text-gray-400">–</span>}
+                        </td>
+                        <td className="px-4 py-2">
+                          {o.shipping_label_url ? (
+                            <div className="flex flex-col gap-0.5">
+                              <a href={o.shipping_label_url} target="_blank" rel="noreferrer" className="text-[#E63946] font-semibold hover:underline text-xs" data-testid={`admin-label-${o.order_number}`}>Label ↓</a>
+                              {o.packing_slip_url && <a href={o.packing_slip_url} target="_blank" rel="noreferrer" className="text-gray-500 hover:underline text-xs" data-testid={`admin-slip-${o.order_number}`}>Packzettel ↓</a>}
+                            </div>
+                          ) : (
+                            <label className="inline-flex items-center gap-1 text-xs font-semibold text-[#E63946] cursor-pointer" data-testid={`admin-upload-label-${o.order_number}`}>
+                              {labelUploadingId === o.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />} Label hochladen
+                              <input type="file" accept="application/pdf" className="hidden" onChange={(e) => uploadLabel(o, e)} />
+                            </label>
+                          )}
                         </td>
                       </tr>
                     ))}

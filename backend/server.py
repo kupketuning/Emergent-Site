@@ -14,11 +14,16 @@ from datetime import datetime, timezone
 
 import asyncpg
 import stripe
+import io
+import zipfile
+import requests as pyrequests
 
 from seed_data import PRODUCTS as SEED_PRODUCTS, CATEGORIES
 import sb_db
 import invoice
 import image_util
+import email_service
+from fastapi.responses import StreamingResponse
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -575,7 +580,15 @@ async def _finalize_order(session_id: str):
 
         # Rechnung erzeugen (best-effort, außerhalb der Bestell-Transaktion)
         try:
-            await _create_invoice(conn, order_id, customer_id, cust, pending, order_number)
+            invoice_number, invoice_pdf_url = await _create_invoice(conn, order_id, customer_id, cust, pending, order_number)
+            if cust.get("email"):
+                try:
+                    await email_service.send_invoice_email(
+                        to=cust["email"],
+                        customer_name=f"{cust.get('first_name', '')} {cust.get('last_name', '')}".strip(),
+                        order_number=order_number, invoice_number=invoice_number, pdf_url=invoice_pdf_url)
+                except Exception:
+                    logger.exception("Rechnungs-E-Mail fehlgeschlagen für Bestellung %s", order_number)
         except Exception:
             logger.exception("Rechnungserzeugung fehlgeschlagen für Bestellung %s", order_number)
 
@@ -617,7 +630,7 @@ async def _create_invoice(conn, order_id, customer_id, cust, pending, order_numb
         invoice_number, order_id, customer_id, json.dumps(items),
         pending["subtotal_net"], pending["tax_total"], pending["total_gross"], pdf_url)
     await conn.execute("update orders set invoice_id=$1 where id=$2", inv["id"], order_id)
-    return invoice_number
+    return invoice_number, pdf_url
 
 
 @api_router.get("/checkout/status/{session_id}")
@@ -644,29 +657,118 @@ async def stripe_webhook(request: Request):
     return {"status": "ok"}
 
 
+ORDER_JOIN_SQL = """select o.*, c.email as customer_email, c.first_name, c.last_name,
+                      c.company, c.street, c.zip, c.city, c.country,
+                      i.invoice_number, i.pdf_url as invoice_pdf_url
+               from orders o
+               left join customers c on c.id = o.customer_id
+               left join invoices i on i.id = o.invoice_id"""
+
+
+def _order_row(r):
+    d = dict(r)
+    if isinstance(d.get('items'), str):
+        try:
+            d['items'] = json.loads(d['items'])
+        except Exception:
+            pass
+    return d
+
+
 @api_router.get("/sb/orders")
 async def sb_list_orders(x_admin_token: Optional[str] = Header(None)):
     _check_admin(x_admin_token)
     pool = await sb_db.get_pool()
     async with pool.acquire() as conn:
+        rows = await conn.fetch(ORDER_JOIN_SQL + " order by o.created_at desc")
+    return [_order_row(r) for r in rows]
+
+
+@api_router.post("/sb/orders/{order_id}/shipping-label")
+async def sb_upload_shipping_label(order_id: str, file: UploadFile = File(...),
+                                   x_admin_token: Optional[str] = Header(None)):
+    _check_admin(x_admin_token)
+    pool = await sb_db.get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(ORDER_JOIN_SQL + " where o.id=$1", order_id)
+        if not row:
+            raise HTTPException(status_code=404, detail="Bestellung nicht gefunden")
+        order = _order_row(row)
+
+        label_bytes = await file.read()
+        label_url = await run_in_threadpool(
+            sb_db.upload_bytes, f"{order['order_number']}-label.pdf", label_bytes,
+            file.content_type or "application/pdf", "shipping-labels")
+
+        slip_items = [{
+            "sku": it.get("sku", ""), "name": it.get("name", ""),
+            "path": invoice.build_breadcrumb(it.get("vehicle"), it.get("product_type"), it.get("assembly_group")),
+            "quantity": it.get("quantity", 0),
+        } for it in (order.get("items") or [])]
+        slip_bytes = await run_in_threadpool(
+            lambda: invoice.generate_packing_slip_pdf(
+                order_number=order["order_number"], issue_date=datetime.now(timezone.utc),
+                customer=order, items=slip_items))
+        slip_url = await run_in_threadpool(
+            sb_db.upload_bytes, f"{order['order_number']}-packzettel.pdf", slip_bytes,
+            "application/pdf", "packing-slips")
+
+        updated = await conn.fetchrow(
+            """update orders set shipping_label_url=$1, packing_slip_url=$2, status='VERSENDET'
+               where id=$3 returning *""", label_url, slip_url, order_id)
+
+    if order.get("customer_email"):
+        try:
+            await email_service.send_shipping_label_email(
+                to=order["customer_email"],
+                customer_name=f"{order.get('first_name', '')} {order.get('last_name', '')}".strip(),
+                order_number=order["order_number"], label_url=label_url)
+        except Exception:
+            logger.exception("Label-E-Mail fehlgeschlagen für Bestellung %s", order["order_number"])
+    try:
+        await email_service.send_packing_slip_email(order_number=order["order_number"], packing_slip_url=slip_url)
+    except Exception:
+        logger.exception("Packzettel-E-Mail fehlgeschlagen für Bestellung %s", order["order_number"])
+
+    return _order_row(updated)
+
+
+@api_router.get("/sb/invoices/export")
+async def sb_export_invoices(year: int = Query(...), month: int = Query(...),
+                             x_admin_token: Optional[str] = Header(None)):
+    _check_admin(x_admin_token)
+    if not (1 <= month <= 12):
+        raise HTTPException(status_code=400, detail="Ungültiger Monat")
+    start = datetime(year, month, 1, tzinfo=timezone.utc)
+    end = datetime(year + 1, 1, 1, tzinfo=timezone.utc) if month == 12 else datetime(year, month + 1, 1, tzinfo=timezone.utc)
+
+    pool = await sb_db.get_pool()
+    async with pool.acquire() as conn:
         rows = await conn.fetch(
-            """select o.*, c.email as customer_email, c.first_name, c.last_name,
-                      c.street, c.zip, c.city,
-                      i.invoice_number, i.pdf_url as invoice_pdf_url
-               from orders o
-               left join customers c on c.id = o.customer_id
-               left join invoices i on i.id = o.invoice_id
-               order by o.created_at desc""")
-    out = []
-    for r in rows:
-        d = dict(r)
-        if isinstance(d.get('items'), str):
-            try:
-                d['items'] = json.loads(d['items'])
-            except Exception:
-                pass
-        out.append(d)
-    return out
+            "select invoice_number, pdf_url from invoices where issued_at >= $1 and issued_at < $2 order by invoice_number",
+            start, end)
+    if not rows:
+        raise HTTPException(status_code=404, detail="Keine Rechnungen für diesen Zeitraum gefunden")
+
+    def build_zip():
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as zf:
+            for r in rows:
+                if not r['pdf_url']:
+                    continue
+                try:
+                    resp = pyrequests.get(r['pdf_url'], timeout=30)
+                    if resp.status_code == 200:
+                        zf.writestr(f"{r['invoice_number']}.pdf", resp.content)
+                except Exception:
+                    logger.exception("PDF-Download fehlgeschlagen: %s", r['invoice_number'])
+        buf.seek(0)
+        return buf
+
+    zip_buf = await run_in_threadpool(build_zip)
+    filename = f"Rechnungen_{year}-{month:02d}.zip"
+    return StreamingResponse(zip_buf, media_type="application/zip",
+                             headers={"Content-Disposition": f'attachment; filename="{filename}"'})
 
 
 app.include_router(api_router)

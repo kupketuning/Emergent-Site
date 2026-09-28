@@ -41,6 +41,16 @@ create table if not exists products (
   updated_at timestamptz default now()
 );
 
+-- Migration: Rennsport entfällt, alle Rennsport-Produkte laufen künftig unter Tuning
+update products set product_type = 'TUNING' where product_type = 'RENNSPORT';
+do $$
+begin
+  if exists (select 1 from pg_constraint where conname = 'products_product_type_check') then
+    alter table products drop constraint products_product_type_check;
+  end if;
+  alter table products add constraint products_product_type_check check (product_type in ('ORIGINAL','TUNING'));
+end $$;
+
 -- Erweiterung: Fahrzeug-Typ (nur Trabant) und fahrzeugunabhängige Sonderkategorien
 alter table products add column if not exists vehicle_model text;
 alter table products add column if not exists special_category text;
@@ -116,9 +126,14 @@ create table if not exists orders (
   tracking_url text,
   invoice_id uuid,
   notes text,
+  shipping_label_url text,
+  packing_slip_url text,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
+
+alter table orders add column if not exists shipping_label_url text;
+alter table orders add column if not exists packing_slip_url text;
 
 -- Cross-Foreign-Keys (orders <-> invoices)
 do $$

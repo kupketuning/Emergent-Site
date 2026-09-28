@@ -48,6 +48,15 @@ export const api = {
 
   // ---- Admin: orders ----
   getOrders: async () => (await client.get('/sb/orders', authHeaders())).data,
+  uploadShippingLabel: async (orderId, file) => {
+    const fd = new FormData();
+    fd.append('file', file);
+    return (await client.post(`/sb/orders/${orderId}/shipping-label`, fd, { headers: { ...authHeaders().headers, 'Content-Type': 'multipart/form-data' } })).data;
+  },
+  exportInvoicesZip: async (year, month) => {
+    const res = await client.get('/sb/invoices/export', { params: { year, month }, ...authHeaders(), responseType: 'blob' });
+    return res.data;
+  },
 };
 
 export default api;

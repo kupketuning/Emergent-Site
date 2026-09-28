@@ -3,6 +3,7 @@ import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { ChevronRight, Cog, Disc, Waypoints, Wind, Zap, Car } from 'lucide-react';
 import { useProducts } from '../context/ProductsContext';
 import { vehicleBySlug, typeBySlug, ASSEMBLIES, MODELS } from '../lib/catalog';
+import { CatalogTile } from '../components/CatalogTile';
 import Seo from '../components/Seo';
 
 const ICON = { MOTOR: Cog, BREMSE: Disc, FAHRWERK: Waypoints, ABGAS: Wind, ELEKTRIK: Zap, KAROSSERIE: Car };
@@ -47,17 +48,16 @@ const CatalogType = () => {
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 gap-5">
           {available.map((a) => {
-            const Icon = ICON[a.code] || Cog;
             const count = products.filter((p) => matches(p) && p.assembly_code === a.code).length;
             return (
-              <Link key={a.slug} to={`/katalog/${v.slug}/${t.slug}/${a.slug}${modelQuery}`} data-testid={`assembly-tile-${a.slug}`}
-                className="group border border-gray-200 rounded-xl p-6 text-center hover:border-[#E63946] hover:shadow-lg transition-all flex flex-col items-center">
-                <span className="w-14 h-14 rounded-full bg-[#17191d] flex items-center justify-center mb-3 group-hover:bg-[#E63946] transition-colors">
-                  <Icon className="w-7 h-7 text-white" strokeWidth={1.8} />
-                </span>
-                <span className="font-logo text-lg font-bold text-[#17191d] uppercase group-hover:text-[#E63946] transition-colors">{a.name}</span>
-                <span className="text-xs text-gray-500 mt-1">{count} Artikel</span>
-              </Link>
+              <CatalogTile
+                key={a.slug}
+                to={`/katalog/${v.slug}/${t.slug}/${a.slug}${modelQuery}`}
+                icon={ICON[a.code] || Cog}
+                title={a.name}
+                subtitle={`${count} Artikel`}
+                testId={`assembly-tile-${a.slug}`}
+              />
             );
           })}
         </div>

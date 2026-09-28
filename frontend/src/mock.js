@@ -9,26 +9,25 @@ export const FALLBACK_IMG = 'https://images.unsplash.com/photo-1486262715619-67b
 
 // Category ids match the Supabase assembly_group values
 export const categories = [
-  { id: 'MOTOR', name: 'Motor & Tuning', sub: ['Original', 'Tuning', 'Rennsport'] },
-  { id: 'BREMSE', name: 'Bremsen', sub: ['Original', 'Tuning', 'Rennsport'] },
-  { id: 'FAHRWERK', name: 'Fahrwerk & Räder', sub: ['Original', 'Tuning', 'Rennsport'] },
-  { id: 'ABGAS', name: 'Abgasanlagen', sub: ['Original', 'Tuning', 'Rennsport'] },
-  { id: 'KAROSSERIE', name: 'Karosserie & Sicherheit', sub: ['Original', 'Tuning', 'Rennsport'] },
-  { id: 'ELEKTRIK', name: 'Elektrik', sub: ['Original', 'Tuning', 'Rennsport'] },
+  { id: 'MOTOR', name: 'Motor & Tuning', sub: ['Original', 'Tuning'] },
+  { id: 'BREMSE', name: 'Bremsen', sub: ['Original', 'Tuning'] },
+  { id: 'FAHRWERK', name: 'Fahrwerk & Räder', sub: ['Original', 'Tuning'] },
+  { id: 'ABGAS', name: 'Abgasanlagen', sub: ['Original', 'Tuning'] },
+  { id: 'KAROSSERIE', name: 'Karosserie & Sicherheit', sub: ['Original', 'Tuning'] },
+  { id: 'ELEKTRIK', name: 'Elektrik', sub: ['Original', 'Tuning'] },
 ];
 
 // Options for the admin product form
 export const VEHICLE_OPTIONS = [
   { value: 'TRABANT', label: 'Trabant' },
   { value: 'WARTBURG', label: 'Wartburg' },
-  { value: 'B1000', label: 'Barkas B1000' },
+  { value: 'B1000', label: 'Barkas' },
   { value: 'VW', label: 'VW' },
   { value: 'OPEL', label: 'Opel' },
 ];
 export const TYPE_OPTIONS = [
   { value: 'ORIGINAL', label: 'Original' },
   { value: 'TUNING', label: 'Tuning' },
-  { value: 'RENNSPORT', label: 'Rennsport' },
 ];
 export const ASSEMBLY_OPTIONS = [
   { value: 'MOTOR', label: 'Motor & Tuning' },
@@ -49,8 +48,8 @@ export const SPECIAL_CATEGORY_OPTIONS = [
   { value: 'ABVERKAUF', label: 'Abverkauf / Einzelstück' },
 ];
 
-const VEHICLE_LABELS = { TRABANT: 'Trabant', WARTBURG: 'Wartburg', B1000: 'Barkas B1000', VW: 'VW', OPEL: 'Opel' };
-const TYPE_LABELS = { ORIGINAL: 'Original', TUNING: 'Tuning', RENNSPORT: 'Rennsport' };
+const VEHICLE_LABELS = { TRABANT: 'Trabant', WARTBURG: 'Wartburg', B1000: 'Barkas', VW: 'VW', OPEL: 'Opel' };
+const TYPE_LABELS = { ORIGINAL: 'Original', TUNING: 'Tuning', RENNSPORT: 'Tuning' };
 
 // Maps a Supabase product record into the shape the shop UI expects
 export const adaptProduct = (p) => {
@@ -76,7 +75,7 @@ export const adaptProduct = (p) => {
     fahrzeug: VEHICLE_LABELS[p.vehicle] || p.vehicle || '',
     vehicle_model: p.vehicle_model || '',
     special_category: p.special_category || '',
-    badge: p.product_type === 'RENNSPORT' ? 'Rennsport' : (p.is_set ? 'Komplettset' : (p.product_type === 'TUNING' ? 'Tuning' : null)),
+    badge: p.is_set ? 'Komplettset' : (p.product_type === 'TUNING' || p.product_type === 'RENNSPORT' ? 'Tuning' : null),
     delivery: '1-2 Tage',
     variants: [],
     stock_quantity: p.stock_quantity,

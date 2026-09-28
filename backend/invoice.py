@@ -178,3 +178,73 @@ def generate_invoice_pdf(*, invoice_number, order_number, issue_date, customer, 
     doc.build(story)
     buf.seek(0)
     return buf.read()
+
+
+def generate_packing_slip_pdf(*, order_number, issue_date, customer, items):
+    """Packzettel für das Lager – Artikel/Menge/Adresse, ohne Preise. items: [{sku,name,path,quantity}]"""
+    buf = BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=18 * mm, rightMargin=18 * mm,
+                            topMargin=16 * mm, bottomMargin=16 * mm, title=f"Packzettel-{order_number}")
+    styles = getSampleStyleSheet()
+    base = ParagraphStyle('base2', parent=styles['Normal'], fontName='Helvetica', fontSize=9, leading=12, textColor=DARK)
+    small = ParagraphStyle('small2', parent=base, fontSize=8, textColor=GREY, leading=11)
+    h_title = ParagraphStyle('h_title2', parent=base, fontName='Helvetica-Bold', fontSize=20, textColor=TEAL)
+    cell = ParagraphStyle('cell2', parent=base, fontSize=9, leading=12)
+    cell_r = ParagraphStyle('cell_r2', parent=cell, alignment=2)
+    story = []
+
+    d = issue_date.strftime('%d.%m.%Y') if isinstance(issue_date, datetime) else str(issue_date)
+    story.append(Paragraph('PACKZETTEL', h_title))
+    story.append(Spacer(1, 2 * mm))
+    story.append(Paragraph(f"Bestellnummer: B-{order_number}  ·  Datum: {d}", small))
+    story.append(Spacer(1, 6 * mm))
+    story.append(HRFlowable(width='100%', thickness=1.5, color=TEAL))
+    story.append(Spacer(1, 6 * mm))
+
+    name = ' '.join([customer.get('first_name') or '', customer.get('last_name') or '']).strip()
+    addr_lines = [name]
+    if customer.get('company'):
+        addr_lines.append(customer['company'])
+    if customer.get('street'):
+        addr_lines.append(customer['street'])
+    zc = ' '.join([customer.get('zip') or '', customer.get('city') or '']).strip()
+    if zc:
+        addr_lines.append(zc)
+    if customer.get('country'):
+        addr_lines.append(customer['country'])
+    story.append(Paragraph('<font color="#6b7280" size="7">LIEFERADRESSE</font>', small))
+    story.append(Spacer(1, 1.5 * mm))
+    story.append(Paragraph('<br/>'.join([a for a in addr_lines if a]), base))
+    story.append(Spacer(1, 8 * mm))
+
+    head = ['Pos', 'Art.-Nr.', 'Bezeichnung', 'Pfad', 'Menge']
+    data = [[Paragraph(f'<b>{h}</b>', ParagraphStyle('th2', parent=cell, textColor=colors.white,
+             alignment=(2 if h == 'Menge' else 0))) for h in head]]
+    for i, it in enumerate(items, start=1):
+        data.append([
+            Paragraph(str(i), cell),
+            Paragraph(it.get('sku') or '', cell),
+            Paragraph(it.get('name') or '', cell),
+            Paragraph(it.get('path') or '', ParagraphStyle('pathc2', parent=cell, textColor=TEAL, fontSize=8)),
+            Paragraph(str(it.get('quantity') or 0), cell_r),
+        ])
+    tbl = Table(data, colWidths=[10 * mm, 28 * mm, 66 * mm, 44 * mm, 20 * mm], repeatRows=1)
+    tbl.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), DARK),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, LIGHT]),
+        ('LINEBELOW', (0, 0), (-1, -1), 0.4, colors.HexColor('#e5e7eb')),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('TOPPADDING', (0, 0), (-1, -1), 6),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ('LEFTPADDING', (0, 0), (-1, -1), 5),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 5),
+    ]))
+    story.append(tbl)
+    story.append(Spacer(1, 10 * mm))
+    story.append(HRFlowable(width='100%', thickness=1, color=RED))
+    story.append(Spacer(1, 3 * mm))
+    story.append(Paragraph('Bitte Menge vor Versand prüfen. Keine Preisangaben – nur zur internen Kommissionierung.', small))
+
+    doc.build(story)
+    buf.seek(0)
+    return buf.read()
