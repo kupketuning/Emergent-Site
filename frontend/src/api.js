@@ -38,7 +38,7 @@ export const api = {
 
   // ---- Telefonbestellung (öffentlich, per E-Mail-Link) ----
   getPhoneOrderPreview: async (sessionId) => (await client.get(`/phone-orders/${sessionId}`)).data,
-  setInitialPassword: async (sessionId, password) => (await client.post(`/phone-orders/${sessionId}/set-password`, { session_id: sessionId, password })).data,
+  setInitialPassword: async (sessionId, password) => (await client.post(`/phone-orders/${sessionId}/set-password`, { password })).data,
 
   // ---- Mitarbeiter-Login (Admin / Bearbeiter) ----
   staffLogin: async (email, password) => (await client.post('/staff-auth/login', { email, password })).data,

@@ -724,7 +724,6 @@ class PhoneOrderInput(BaseModel):
 
 
 class SetInitialPasswordInput(BaseModel):
-    session_id: str
     password: str
 
 

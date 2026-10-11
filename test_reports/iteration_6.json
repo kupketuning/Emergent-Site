@@ -1,0 +1,41 @@
+{
+  "summary": "End-to-end verification of Jan-2026 session features (customer order stepper, per-order support requests, Widerruf flow, admin phone-order drawer, admin order-status dropdown, admin return-label upload, admin Support tab) plus light regression on Übersicht + Anfragen tabs. 24/24 new backend pytest tests PASS. All frontend playwright flows PASS end-to-end on real preview URL (https://design-322.preview.emergentagent.com) with cookie-based auth preserved. No functional bugs found in new features. Previous iteration_5 report flagged a low-stock banner noise issue (56/56); still unresolved but out of scope for this session.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Admin Phone-Order drawer", "issues": ["Drawer backdrop (fixed overlay with bg-black/40) stays mounted until explicitly closed and intercepts tab clicks until the inner × button is used. Minor UX nit (keyboard ESC + backdrop click to close would be nicer), not a bug."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_new_features.py",
+    "/app/test_reports/pytest/new_features.xml"
+  ],
+  "action_items": [
+    "(Non-blocking) Consider deduplicating session_id: /api/phone-orders/{session_id}/set-password requires session_id BOTH in URL path and in request body (SetInitialPasswordInput model). Body field is effectively redundant.",
+    "(Non-blocking, carried over from iteration_5) Low-stock banner shows 56/56 seed products because stock_quantity=0 <= stock_min_alert=0. Filter should require stock_min_alert > 0.",
+    "(Minor UX) Admin phone-order drawer should allow closing via ESC key or clicking the dark backdrop; currently requires clicking the × button to avoid intercepting tab clicks underneath."
+  ],
+  "critical_code_review_comments": [
+    "server.py: /api/admin/phone-orders creates a users row with role 'customer' and NO password_hash the moment the staff submits the phone order, before the customer has paid or confirmed. If the customer never pays, an inactive password-less account remains. Consider soft-deleting these if pending_checkout expires, OR only creating the account on /set-password.",
+    "server.py: /api/account/orders/{id}/widerruf rejects orders with status 'NEU' as not-cancellable. Business-wise this is correct (nothing to cancel yet), but the UI's eligibility check mirror in OrderCard.jsx should match; please verify.",
+    "server.py: SetInitialPasswordInput requires session_id in body AND path – frontend already passes both, but API shape is inconsistent with other endpoints.",
+    "server.py sb_update_order_status: no audit log of status changes. If admin accidentally sets WIDERRUF_ANGEFORDERT or STORNIERT, there is no way to see who/when. Consider an order_status_history table.",
+    "OrderCard.jsx widerruf uses window.confirm() – acceptable for admin but ok. For customer-facing flow a styled modal would feel more premium.",
+    "server.py /api/staff/support-requests returns raw dict(row) which includes customer_id (uuid). Not sensitive, but consider restricting to needed fields."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_new_features.py (new, 24 tests)"
+  ],
+  "success_rate": {"backend": "100% (24/24 new pytest + ad-hoc curl)", "frontend": "100% for all requested playwright flows"},
+  "test_credentials": "Admin: kupketuning@gmail.com / kupke-admin (/admin, cookie JWT). Customer: musterkunde@kupketuning.de / Musterkunde2026! (/konto/anmelden).",
+  "seed_data_creation": "Test created several support_requests on order 2026-00013 (TEST_*, TEST playwright message, TEST reply-flow, TEST pytest Rückfrage) and 1 phone-order TEL-00004 with user test_po_1791707250@example.com (password set). None of these conflict with production data – all prefixed/clearly test. Current sample order status may be IN_BEARBEITUNG or VERSENDET depending on last run; non-destructive.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "All new Jan-2026 features verified end-to-end: order stepper, per-order support requests (customer side), admin Support tab + reply, admin order-status dropdown with persistence, admin return-label upload gated on WIDERRUF_ANGEFORDERT, admin Telefonbestellung drawer with all data-testids (po-email/first-name/last-name/street/zip/city/country/shipping-method/product-select/add-line/submit), /bestellung-bezahlen?session_id= page with phone-order-password-form + phone-order-pay-btn. Stripe payment itself not completed (no card interaction) – only verified the redirect-ready pay button renders. Backend endpoints: POST /api/account/orders/{id}/support-request, GET …/support-requests, POST …/widerruf, POST /api/admin/phone-orders, GET /api/phone-orders/{session_id}, POST /api/phone-orders/{session_id}/set-password, POST /api/sb/orders/{id}/return-label, PATCH /api/sb/orders/{id}/status, GET /api/staff/support-requests, POST /api/staff/support-requests/{id}/reply all verified. Note test_credentials.md still references old X-Admin-Token for admin; this session fully uses cookie-based staff-auth. The old /app/backend/tests/backend_test.py file still uses X-Admin-Token and should be refactored (not blocking this session).",
+  "rca of the issue": "No bugs required RCA this session. Main agent's self-test screenshot-tool malfunction (reported in review request) did not reproduce in playwright – all flows render first-paint-correct."
+}

@@ -352,6 +352,13 @@ const Admin = () => {
     }
   };
 
+  useEffect(() => {
+    if (!phoneOrderOpen) return;
+    const onKey = (e) => { if (e.key === 'Escape') closePhoneOrder(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [phoneOrderOpen]);
+
   const lowStockProducts = products.filter((p) => (p.stock_min_alert ?? 0) > 0 && (p.stock_quantity ?? 0) <= p.stock_min_alert);
 
   if (resetToken) {
