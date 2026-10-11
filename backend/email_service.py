@@ -18,6 +18,7 @@ EMAIL_BASE_URL = "https://integrations.emergentagent.com"
 EMAIL_KEY = os.environ["EMERGENT_EMAIL_KEY"]
 EMAIL_FROM_NAME = os.environ["EMAIL_FROM_NAME"]
 WAREHOUSE_EMAIL = os.environ.get("WAREHOUSE_EMAIL")
+ADMIN_EMAIL = os.environ.get("ADMIN_EMAIL")
 
 _SHORTENERS = ("bit.ly", "tinyurl.com", "t.co", "is.gd", "cutt.ly", "goo.gl", "rebrand.ly")
 _CRED_ASK = ("reply with your password", "reply with the code", "send your password", "cvv",
@@ -190,3 +191,85 @@ async def send_password_reset_email(*, to: str, name: str, reset_link: str) -> s
         'Ihr Passwort bleibt unverändert.</p>'
     )
     return await send_email(to=to, subject="Passwort zurücksetzen – Kupke Tuning", html=_layout(title, body))
+
+
+async def send_welcome_email(*, to: str, name: str) -> str | None:
+    title = '<h2 style="margin:0;font-size:20px">Willkommen bei Kupke Tuning!</h2>'
+    body = (
+        f'<p>Hallo {escape(name) or ""},</p>'
+        '<p>schön, dass Sie sich ein Konto bei Kupke Tuning angelegt haben. '
+        'In Ihrem Konto finden Sie ab jetzt Ihre Bestellhistorie, Rechnungen und den Versandstatus '
+        'auf einen Blick.</p>'
+    )
+    return await send_email(to=to, subject="Willkommen bei Kupke Tuning", html=_layout(title, body))
+
+
+async def send_support_request_admin_email(*, order_number: str, customer_email: str,
+                                           category: str, message: str) -> str | None:
+    if not ADMIN_EMAIL:
+        logger.error("ADMIN_EMAIL nicht konfiguriert – Support-Anfrage-Mail nicht versendet")
+        return None
+    title = '<h2 style="margin:0;font-size:20px">Neue Support-Anfrage</h2>'
+    body = (
+        f'<p>Zu Bestellung <strong>{escape(order_number)}</strong> von {escape(customer_email)} '
+        f'ist eine neue Anfrage eingegangen (Kategorie: <strong>{escape(category)}</strong>):</p>'
+        f'<p style="background:#f4f5f7;border-radius:6px;padding:14px;white-space:pre-line">{escape(message)}</p>'
+        '<p>Bitte im Admin-Bereich unter „Support" beantworten.</p>'
+    )
+    return await send_email(to=ADMIN_EMAIL, subject=f"Support-Anfrage – Bestellung {order_number}",
+                             html=_layout(title, body))
+
+
+async def send_support_reply_email(*, to: str, name: str, order_number: str, reply: str) -> str | None:
+    title = '<h2 style="margin:0;font-size:20px">Antwort zu Ihrer Anfrage</h2>'
+    body = (
+        f'<p>Hallo {escape(name) or ""},</p>'
+        f'<p>zu Ihrer Anfrage betreffend Bestellung <strong>{escape(order_number)}</strong> haben wir '
+        'geantwortet:</p>'
+        f'<p style="background:#f4f5f7;border-radius:6px;padding:14px;white-space:pre-line">{escape(reply)}</p>'
+    )
+    return await send_email(to=to, subject=f"Antwort zu Ihrer Anfrage – Bestellung {order_number}",
+                             html=_layout(title, body))
+
+
+async def send_cancellation_notice(*, order_number: str, customer_email: str) -> None:
+    title = '<h2 style="margin:0;font-size:20px">Widerruf angefordert</h2>'
+    body = (
+        f'<p>Der Kunde <strong>{escape(customer_email)}</strong> hat die Bestellung '
+        f'<strong>{escape(order_number)}</strong> widerrufen. Bitte Rücksendelabel vorbereiten und '
+        'im Admin-Bereich hochladen.</p>'
+    )
+    html = _layout(title, body)
+    for to in (ADMIN_EMAIL, WAREHOUSE_EMAIL):
+        if to:
+            await send_email(to=to, subject=f"Widerruf – Bestellung {order_number}", html=html)
+
+
+async def send_return_label_email(*, to: str, customer_name: str, order_number: str,
+                                   label_url: str) -> str | None:
+    title = '<h2 style="margin:0;font-size:20px">Ihr Rücksendelabel</h2>'
+    body = (
+        f'<p>Hallo {escape(customer_name) or ""},</p>'
+        f'<p>für Ihren Widerruf zu Bestellung <strong>{escape(order_number)}</strong> steht das '
+        'Hermes-Rücksendelabel bereit:</p>'
+        f'<p style="margin:20px 0">{_button(label_url, "Rücksendelabel öffnen")}</p>'
+        '<p>Bitte ausdrucken und dem Paket beilegen.</p>'
+    )
+    return await send_email(to=to, subject=f"Ihr Rücksendelabel – Bestellung {order_number}",
+                             html=_layout(title, body))
+
+
+async def send_phone_order_email(*, to: str, name: str, order_number: str, items_summary: str,
+                                  total_gross: float, confirm_link: str) -> str | None:
+    title = '<h2 style="margin:0;font-size:20px">Ihre Bestellung bei Kupke Tuning</h2>'
+    body = (
+        f'<p>Hallo {escape(name) or ""},</p>'
+        f'<p>wie telefonisch besprochen haben wir Ihre Bestellung <strong>{escape(order_number)}</strong> '
+        'vorbereitet:</p>'
+        f'<p style="background:#f4f5f7;border-radius:6px;padding:14px;white-space:pre-line">{escape(items_summary)}</p>'
+        f'<p><strong>Gesamtbetrag: {total_gross:.2f} €</strong></p>'
+        '<p>Bitte bestätigen Sie die Bestellung und schließen Sie die Zahlung ab:</p>'
+        f'<p style="margin:20px 0">{_button(confirm_link, "Bestellung bestätigen & bezahlen")}</p>'
+    )
+    return await send_email(to=to, subject=f"Bitte bestätigen: Bestellung {order_number} – Kupke Tuning",
+                             html=_layout(title, body))

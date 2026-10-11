@@ -163,6 +163,22 @@ class StaffUpdateInput(BaseModel):
     is_active: bool
 
 
+class SupportRequestInput(BaseModel):
+    category: str
+    message: str
+
+
+class SupportReplyInput(BaseModel):
+    reply: str
+
+
+class OrderStatusInput(BaseModel):
+    status: str
+
+
+ORDER_STATUSES = ('NEU', 'BEZAHLT', 'IN_BEARBEITUNG', 'VERSENDET', 'ABGEHOLT', 'WIDERRUF_ANGEFORDERT', 'STORNIERT')
+
+
 def _clean(doc: dict) -> dict:
     doc.pop('_id', None)
     return doc
@@ -191,6 +207,10 @@ async def auth_register(data: RegisterInput, response: Response):
             "insert into users (email, password_hash, name, role) values ($1,$2,$3,'customer') returning *",
             data.email.lower().strip(), auth_service.hash_password(data.password), data.name)
     auth_service.set_auth_cookies(response, str(user['id']), user['role'])
+    try:
+        await email_service.send_welcome_email(to=user['email'], name=user.get('name') or '')
+    except Exception:
+        logger.exception("Willkommens-E-Mail fehlgeschlagen für %s", user['email'])
     return auth_service.public_user(user)
 
 
@@ -260,6 +280,61 @@ async def account_orders(user: dict = CURRENT_USER):
                where c.email = $1
                order by o.created_at desc""", user['email'])
     return [_order_row(r) for r in rows]
+
+
+async def _get_own_order(conn, order_id: str, user_email: str):
+    row = await conn.fetchrow(
+        """select o.*, c.email as customer_email, c.first_name, c.last_name
+           from orders o join customers c on c.id = o.customer_id
+           where o.id=$1 and c.email=$2""", order_id, user_email)
+    if not row:
+        raise HTTPException(status_code=404, detail="Bestellung nicht gefunden")
+    return row
+
+
+@api_router.post("/account/orders/{order_id}/support-request")
+async def create_support_request(order_id: str, data: SupportRequestInput, user: dict = CURRENT_USER):
+    if data.category not in ('RUECKFRAGE', 'TERMINANFRAGE', 'REKLAMATION', 'SONSTIGES'):
+        raise HTTPException(status_code=400, detail="Ungültige Kategorie")
+    pool = await sb_db.get_pool()
+    async with pool.acquire() as conn:
+        order = await _get_own_order(conn, order_id, user['email'])
+        req = await conn.fetchrow(
+            """insert into support_requests (order_id, customer_id, category, message)
+               values ($1,$2,$3,$4) returning *""",
+            order_id, order['customer_id'], data.category, data.message)
+    try:
+        await email_service.send_support_request_admin_email(
+            order_number=order['order_number'], customer_email=user['email'],
+            category=data.category, message=data.message)
+    except Exception:
+        logger.exception("Support-Anfrage-E-Mail fehlgeschlagen für Bestellung %s", order['order_number'])
+    return dict(req)
+
+
+@api_router.get("/account/orders/{order_id}/support-requests")
+async def list_own_support_requests(order_id: str, user: dict = CURRENT_USER):
+    pool = await sb_db.get_pool()
+    async with pool.acquire() as conn:
+        await _get_own_order(conn, order_id, user['email'])
+        rows = await conn.fetch("select * from support_requests where order_id=$1 order by created_at desc", order_id)
+    return [dict(r) for r in rows]
+
+
+@api_router.post("/account/orders/{order_id}/widerruf")
+async def request_cancellation(order_id: str, user: dict = CURRENT_USER):
+    pool = await sb_db.get_pool()
+    async with pool.acquire() as conn:
+        order = await _get_own_order(conn, order_id, user['email'])
+        if order['status'] in ('WIDERRUF_ANGEFORDERT', 'STORNIERT', 'NEU'):
+            raise HTTPException(status_code=400, detail="Für diese Bestellung kann kein Widerruf angefordert werden.")
+        updated = await conn.fetchrow(
+            "update orders set status='WIDERRUF_ANGEFORDERT' where id=$1 returning *", order_id)
+    try:
+        await email_service.send_cancellation_notice(order_number=order['order_number'], customer_email=user['email'])
+    except Exception:
+        logger.exception("Widerrufs-Benachrichtigung fehlgeschlagen für Bestellung %s", order['order_number'])
+    return _order_row(updated)
 
 
 # ==================== Mitarbeiter-Login (Admin / Bearbeiter) ====================
@@ -636,6 +711,59 @@ class CheckoutRequest(BaseModel):
     origin_url: str
 
 
+class PhoneOrderItem(BaseModel):
+    product_id: str
+    quantity: int = 1
+
+
+class PhoneOrderInput(BaseModel):
+    customer: CheckoutCustomer
+    items: List[PhoneOrderItem]
+    shipping_method: str = "HERMES"
+    origin_url: str
+
+
+class SetInitialPasswordInput(BaseModel):
+    session_id: str
+    password: str
+
+
+async def _resolve_line_items(conn, items):
+    """items: list of {product_id, quantity, variant?}. Returns (line_items, resolved, subtotal_net, tax_total)."""
+    line_items, resolved = [], []
+    subtotal_net = tax_total = 0.0
+    for it in items:
+        r = await conn.fetchrow("select * from products where id=$1", it.product_id)
+        if not r:
+            raise HTTPException(status_code=404, detail=f"Produkt nicht gefunden: {it.product_id}")
+        net = float(r['price_net'] or 0)
+        if net <= 0:
+            raise HTTPException(status_code=400,
+                                detail=f"Für „{r['name']}“ ist kein Preis hinterlegt – bitte per Preisanfrage bestellen.")
+        rate = float(r['tax_rate'] or 0)
+        gross = round(net * (1 + rate / 100), 2)
+        qty = max(1, int(it.quantity))
+        variant = getattr(it, 'variant', '') or ''
+        name = r['name'] + (f" ({variant})" if variant else "")
+        images = list(r['images'] or [])
+        prod_data = {"name": name}
+        if images:
+            prod_data["images"] = images[:1]
+        line_items.append({
+            "price_data": {"currency": "eur", "product_data": prod_data,
+                           "unit_amount": int(round(gross * 100))},
+            "quantity": qty,
+        })
+        subtotal_net += net * qty
+        tax_total += (gross - net) * qty
+        resolved.append({"product_id": str(r['id']), "sku": r['sku'], "name": name,
+                         "quantity": qty, "variant": variant,
+                         "unit_price_net": net, "unit_price_gross": gross, "tax_rate": rate,
+                         "vehicle": r['vehicle'], "product_type": r['product_type'],
+                         "assembly_group": r['assembly_group']})
+    return line_items, resolved, subtotal_net, tax_total
+
+
 @api_router.post("/checkout")
 async def create_checkout(req: CheckoutRequest):
     if not req.items:
@@ -644,38 +772,8 @@ async def create_checkout(req: CheckoutRequest):
         raise HTTPException(status_code=400, detail="Ungültige Versandart.")
 
     pool = await sb_db.get_pool()
-    line_items, resolved = [], []
-    subtotal_net = tax_total = 0.0
-
     async with pool.acquire() as conn:
-        for it in req.items:
-            r = await conn.fetchrow("select * from products where id=$1", it.product_id)
-            if not r:
-                raise HTTPException(status_code=404, detail=f"Produkt nicht gefunden: {it.product_id}")
-            net = float(r['price_net'] or 0)
-            if net <= 0:
-                raise HTTPException(status_code=400,
-                                    detail=f"Für „{r['name']}“ ist kein Preis hinterlegt – bitte per Preisanfrage bestellen.")
-            rate = float(r['tax_rate'] or 0)
-            gross = round(net * (1 + rate / 100), 2)
-            qty = max(1, int(it.quantity))
-            name = r['name'] + (f" ({it.variant})" if it.variant else "")
-            images = list(r['images'] or [])
-            prod_data = {"name": name}
-            if images:
-                prod_data["images"] = images[:1]
-            line_items.append({
-                "price_data": {"currency": "eur", "product_data": prod_data,
-                               "unit_amount": int(round(gross * 100))},
-                "quantity": qty,
-            })
-            subtotal_net += net * qty
-            tax_total += (gross - net) * qty
-            resolved.append({"product_id": str(r['id']), "sku": r['sku'], "name": name,
-                             "quantity": qty, "variant": it.variant,
-                             "unit_price_net": net, "unit_price_gross": gross, "tax_rate": rate,
-                             "vehicle": r['vehicle'], "product_type": r['product_type'],
-                             "assembly_group": r['assembly_group']})
+        line_items, resolved, subtotal_net, tax_total = await _resolve_line_items(conn, req.items)
 
     ship_cents = SHIPPING_RATES_CENTS[req.shipping_method]
     shipping_options = []
@@ -712,6 +810,119 @@ async def create_checkout(req: CheckoutRequest):
         "created_at": datetime.now(timezone.utc),
     })
     return {"url": session.url, "session_id": session.id}
+
+
+@api_router.post("/admin/phone-orders")
+async def create_phone_order(req: PhoneOrderInput, staff: dict = STAFF):
+    if not req.items:
+        raise HTTPException(status_code=400, detail="Mindestens ein Produkt angeben.")
+    if req.shipping_method not in SHIPPING_RATES_CENTS:
+        raise HTTPException(status_code=400, detail="Ungültige Versandart.")
+    email = req.customer.email.lower().strip()
+
+    pool = await sb_db.get_pool()
+    async with pool.acquire() as conn:
+        line_items, resolved, subtotal_net, tax_total = await _resolve_line_items(conn, req.items)
+        user = await auth_service.get_user_by_email(conn, email)
+        if not user:
+            user = await conn.fetchrow(
+                "insert into users (email, name, role) values ($1,$2,'customer') returning *",
+                email, f"{req.customer.first_name} {req.customer.last_name}".strip())
+        seq = await conn.fetchval("select get_next_number('phone_order_preview')")
+    preview_number = f"TEL-{seq:05d}"
+
+    ship_cents = SHIPPING_RATES_CENTS[req.shipping_method]
+    shipping_options = []
+    if ship_cents > 0:
+        shipping_options = [{"shipping_rate_data": {
+            "type": "fixed_amount", "fixed_amount": {"amount": ship_cents, "currency": "eur"},
+            "display_name": "Hermes Versand"}}]
+    total_gross = round(subtotal_net + tax_total + ship_cents / 100, 2)
+
+    session = await run_in_threadpool(lambda: stripe.checkout.Session.create(
+        mode="payment", line_items=line_items, shipping_options=shipping_options,
+        customer_email=email,
+        success_url=f"{req.origin_url}/bestellung-bestaetigt?session_id={{CHECKOUT_SESSION_ID}}",
+        cancel_url=f"{req.origin_url}/bestellung-bezahlen?session_id={{CHECKOUT_SESSION_ID}}",
+        metadata={"shipping_method": req.shipping_method, "phone_order": "true"},
+    ))
+
+    await db.pending_checkouts.insert_one({
+        "session_id": session.id,
+        "items": resolved,
+        "customer": req.customer.dict(),
+        "shipping_method": req.shipping_method,
+        "shipping_cost_gross": round(ship_cents / 100, 2),
+        "subtotal_net": round(subtotal_net, 2),
+        "tax_total": round(tax_total, 2),
+        "total_gross": total_gross,
+        "finalized": False,
+        "order_id": None,
+        "order_number": None,
+        "created_at": datetime.now(timezone.utc),
+        "phone_order": True,
+        "preview_number": preview_number,
+    })
+    items_summary = "\n".join(f"{it['quantity']}x {it['name']} – {it['unit_price_gross']:.2f} €" for it in resolved)
+    confirm_link = f"{req.origin_url}/bestellung-bezahlen?session_id={session.id}"
+    try:
+        await email_service.send_phone_order_email(
+            to=email, name=f"{req.customer.first_name} {req.customer.last_name}".strip(),
+            order_number=preview_number, items_summary=items_summary,
+            total_gross=total_gross, confirm_link=confirm_link)
+    except Exception:
+        logger.exception("Telefonbestellungs-E-Mail fehlgeschlagen für %s", email)
+
+    return {"session_id": session.id, "preview_number": preview_number, "confirm_link": confirm_link}
+
+
+@api_router.get("/phone-orders/{session_id}")
+async def get_phone_order_preview(session_id: str):
+    pending = await db.pending_checkouts.find_one({"session_id": session_id})
+    if not pending:
+        raise HTTPException(status_code=404, detail="Bestellung nicht gefunden.")
+    if pending.get("finalized"):
+        return {"finalized": True, "order_number": pending.get("order_number")}
+    pool = await sb_db.get_pool()
+    async with pool.acquire() as conn:
+        user = await auth_service.get_user_by_email(conn, pending["customer"]["email"])
+    checkout_url = None
+    try:
+        session = await run_in_threadpool(stripe.checkout.Session.retrieve, session_id)
+        checkout_url = session.get("url")
+    except Exception:
+        logger.exception("Stripe-Session konnte nicht geladen werden: %s", session_id)
+    return {
+        "finalized": False,
+        "preview_number": pending.get("preview_number"),
+        "items": pending["items"],
+        "subtotal_net": pending["subtotal_net"],
+        "tax_total": pending["tax_total"],
+        "shipping_cost_gross": pending["shipping_cost_gross"],
+        "total_gross": pending["total_gross"],
+        "customer_email": pending["customer"]["email"],
+        "needs_password": bool(user) and not user["password_hash"],
+        "checkout_url": checkout_url,
+    }
+
+
+@api_router.post("/phone-orders/{session_id}/set-password")
+async def set_initial_password(session_id: str, data: SetInitialPasswordInput, response: Response):
+    pending = await db.pending_checkouts.find_one({"session_id": session_id})
+    if not pending:
+        raise HTTPException(status_code=404, detail="Bestellung nicht gefunden.")
+    pool = await sb_db.get_pool()
+    async with pool.acquire() as conn:
+        user = await auth_service.get_user_by_email(conn, pending["customer"]["email"])
+        if not user:
+            raise HTTPException(status_code=404, detail="Konto nicht gefunden.")
+        if user["password_hash"]:
+            raise HTTPException(status_code=400, detail="Für dieses Konto ist bereits ein Passwort vergeben.")
+        user = await conn.fetchrow(
+            "update users set password_hash=$1 where id=$2 returning *",
+            auth_service.hash_password(data.password), user["id"])
+    auth_service.set_auth_cookies(response, str(user['id']), user['role'])
+    return auth_service.public_user(user)
 
 
 async def _finalize_order(session_id: str):
@@ -909,6 +1120,83 @@ async def sb_upload_shipping_label(order_id: str, file: UploadFile = File(...), 
         logger.exception("Packzettel-E-Mail fehlgeschlagen für Bestellung %s", order["order_number"])
 
     return _order_row(updated)
+
+
+@api_router.post("/sb/orders/{order_id}/return-label")
+async def sb_upload_return_label(order_id: str, file: UploadFile = File(...), staff: dict = STAFF):
+    pool = await sb_db.get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(ORDER_JOIN_SQL + " where o.id=$1", order_id)
+        if not row:
+            raise HTTPException(status_code=404, detail="Bestellung nicht gefunden")
+        order = _order_row(row)
+        label_bytes = await file.read()
+        label_url = await run_in_threadpool(
+            sb_db.upload_bytes, f"{order['order_number']}-ruecksendelabel.pdf", label_bytes,
+            file.content_type or "application/pdf", "return-labels")
+        updated = await conn.fetchrow(
+            "update orders set return_label_url=$1 where id=$2 returning *", label_url, order_id)
+
+    if order.get("customer_email"):
+        try:
+            await email_service.send_return_label_email(
+                to=order["customer_email"],
+                customer_name=f"{order.get('first_name', '')} {order.get('last_name', '')}".strip(),
+                order_number=order["order_number"], label_url=label_url)
+        except Exception:
+            logger.exception("Rücksendelabel-E-Mail fehlgeschlagen für Bestellung %s", order["order_number"])
+    return _order_row(updated)
+
+
+@api_router.patch("/sb/orders/{order_id}/status")
+async def sb_update_order_status(order_id: str, data: OrderStatusInput, staff: dict = STAFF):
+    if data.status not in ORDER_STATUSES:
+        raise HTTPException(status_code=400, detail="Ungültiger Status")
+    pool = await sb_db.get_pool()
+    async with pool.acquire() as conn:
+        updated = await conn.fetchrow(
+            "update orders set status=$1 where id=$2 returning *", data.status, order_id)
+    if not updated:
+        raise HTTPException(status_code=404, detail="Bestellung nicht gefunden")
+    return _order_row(updated)
+
+
+@api_router.get("/staff/support-requests")
+async def list_support_requests(staff: dict = STAFF):
+    pool = await sb_db.get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            """select sr.*, o.order_number, c.email as customer_email
+               from support_requests sr
+               join orders o on o.id = sr.order_id
+               left join customers c on c.id = sr.customer_id
+               order by sr.created_at desc""")
+    return [dict(r) for r in rows]
+
+
+@api_router.post("/staff/support-requests/{request_id}/reply")
+async def reply_support_request(request_id: str, data: SupportReplyInput, staff: dict = STAFF):
+    pool = await sb_db.get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            """select sr.*, o.order_number, c.email as customer_email, c.first_name, c.last_name
+               from support_requests sr
+               join orders o on o.id = sr.order_id
+               left join customers c on c.id = sr.customer_id
+               where sr.id=$1""", request_id)
+        if not row:
+            raise HTTPException(status_code=404, detail="Anfrage nicht gefunden")
+        updated = await conn.fetchrow(
+            """update support_requests set admin_reply=$1, status='BEANTWORTET', replied_at=now()
+               where id=$2 returning *""", data.reply, request_id)
+    if row.get("customer_email"):
+        try:
+            await email_service.send_support_reply_email(
+                to=row["customer_email"], name=f"{row.get('first_name', '')} {row.get('last_name', '')}".strip(),
+                order_number=row["order_number"], reply=data.reply)
+        except Exception:
+            logger.exception("Antwort-E-Mail fehlgeschlagen für Anfrage %s", request_id)
+    return dict(updated)
 
 
 @api_router.get("/sb/invoices/export")

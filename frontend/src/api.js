@@ -32,6 +32,13 @@ export const api = {
   forgotPassword: async (email, resetUrlBase) => (await client.post('/auth/forgot-password', { email, reset_url_base: resetUrlBase })).data,
   resetPassword: async (token, newPassword) => (await client.post('/auth/reset-password', { token, new_password: newPassword })).data,
   getMyOrders: async () => (await client.get('/account/orders')).data,
+  createSupportRequest: async (orderId, data) => (await client.post(`/account/orders/${orderId}/support-request`, data)).data,
+  getOwnSupportRequests: async (orderId) => (await client.get(`/account/orders/${orderId}/support-requests`)).data,
+  requestCancellation: async (orderId) => (await client.post(`/account/orders/${orderId}/widerruf`)).data,
+
+  // ---- Telefonbestellung (öffentlich, per E-Mail-Link) ----
+  getPhoneOrderPreview: async (sessionId) => (await client.get(`/phone-orders/${sessionId}`)).data,
+  setInitialPassword: async (sessionId, password) => (await client.post(`/phone-orders/${sessionId}/set-password`, { session_id: sessionId, password })).data,
 
   // ---- Mitarbeiter-Login (Admin / Bearbeiter) ----
   staffLogin: async (email, password) => (await client.post('/staff-auth/login', { email, password })).data,
@@ -41,6 +48,17 @@ export const api = {
   createStaffUser: async (data) => (await client.post('/staff/users', data)).data,
   setStaffUserActive: async (userId, isActive) => (await client.patch(`/staff/users/${userId}`, { is_active: isActive })).data,
   getAdminOverview: async () => (await client.get('/admin/overview')).data,
+  createPhoneOrder: async (data) => (await client.post('/admin/phone-orders', data)).data,
+
+  // ---- Admin: Support-Anfragen & Bestellstatus ----
+  listSupportRequests: async () => (await client.get('/staff/support-requests')).data,
+  replySupportRequest: async (id, reply) => (await client.post(`/staff/support-requests/${id}/reply`, { reply })).data,
+  updateOrderStatus: async (orderId, status) => (await client.patch(`/sb/orders/${orderId}/status`, { status })).data,
+  uploadReturnLabel: async (orderId, file) => {
+    const fd = new FormData();
+    fd.append('file', file);
+    return (await client.post(`/sb/orders/${orderId}/return-label`, fd, { headers: { 'Content-Type': 'multipart/form-data' } })).data;
+  },
 
   // ---- Admin: Supabase products ----
   adminGetProducts: async (params = {}) => (await client.get('/sb/products', { params })).data,

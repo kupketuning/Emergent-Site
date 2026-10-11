@@ -134,6 +134,16 @@ create table if not exists orders (
 
 alter table orders add column if not exists shipping_label_url text;
 alter table orders add column if not exists packing_slip_url text;
+alter table orders add column if not exists return_label_url text;
+
+do $$
+begin
+  if exists (select 1 from pg_constraint where conname = 'orders_status_check') then
+    alter table orders drop constraint orders_status_check;
+  end if;
+  alter table orders add constraint orders_status_check
+    check (status in ('NEU','BEZAHLT','IN_BEARBEITUNG','VERSENDET','ABGEHOLT','WIDERRUF_ANGEFORDERT','STORNIERT'));
+end $$;
 
 -- Cross-Foreign-Keys (orders <-> invoices)
 do $$
@@ -204,6 +214,27 @@ create index if not exists idx_products_sort on products(sort_order);
 create index if not exists idx_orders_customer on orders(customer_id);
 create index if not exists idx_orders_status on orders(status);
 create index if not exists idx_invoices_customer on invoices(customer_id);
+
+-- ============================================================
+-- 8. SUPPORT_REQUESTS (Kunden-Anfragen pro Bestellung)
+-- ============================================================
+create table if not exists support_requests (
+  id uuid primary key default gen_random_uuid(),
+  order_id uuid references orders(id) on delete cascade,
+  customer_id uuid references customers(id),
+  category text check (category in ('RUECKFRAGE','TERMINANFRAGE','REKLAMATION','SONSTIGES')),
+  message text not null,
+  status text default 'OFFEN' check (status in ('OFFEN','BEANTWORTET')),
+  admin_reply text,
+  replied_at timestamptz,
+  created_at timestamptz default now()
+);
+create index if not exists idx_support_requests_order on support_requests(order_id);
+
+alter table support_requests enable row level security;
+drop policy if exists support_requests_auth on support_requests;
+create policy support_requests_auth on support_requests
+  for all to authenticated using (true) with check (true);
 
 -- ============================================================
 -- 7. USERS & PASSWORD RESET (Kundenkonten + Mitarbeiter-Logins)

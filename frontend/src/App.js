@@ -26,6 +26,7 @@ import Login from './pages/account/Login';
 import MyAccount from './pages/account/MyAccount';
 import ForgotPassword from './pages/account/ForgotPassword';
 import ResetPassword from './pages/account/ResetPassword';
+import PhoneOrderConfirm from './pages/account/PhoneOrderConfirm';
 import AuthCallback from './pages/account/AuthCallback';
 
 function ScrollToTop() {
@@ -60,6 +61,7 @@ function ShopRoutes() {
         <Route path="/konto/anmelden" element={<Login />} />
         <Route path="/konto/passwort-vergessen" element={<ForgotPassword />} />
         <Route path="/konto/passwort-zuruecksetzen" element={<ResetPassword />} />
+        <Route path="/bestellung-bezahlen" element={<PhoneOrderConfirm />} />
         <Route
           path="/normteile"
           element={<SpecialCategory category="NORMTEIL" title="Normteile" description="Schrauben, Muttern, Splinte & Co. – ohne Fahrzeugzuordnung, direkt aus unserem Lager." path="/normteile" />}
