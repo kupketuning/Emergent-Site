@@ -1,0 +1,35 @@
+{
+  "summary": "Iteration 7 verification of Jan-2026 admin-improvements: text-3xl admin headings, Bestandskunde picker, custom (INDIVIDUELL) product in Telefonbestellung, Lieferschein download + auto-email on VERSENDET, 3-option customer-facing phone-order confirm page (Anmelden/Registrieren+Google/Gast). 20/20 new pytest backend tests PASS. All frontend playwright flows PASS on real preview URL: 3-option UI renders for guests, Google button sets localStorage post_auth_redirect, Gast button redirects to Stripe checkout, logged-in user bypasses tabs and sees single pay button, admin headers are text-3xl across all 6 tabs, Lieferschein link present + hits /delivery-note, Bestandskunde dropdown lists customers (incl. musterkunde) and auto-fills email/first/last/street/zip/city/country, '+ Individuelles Produkt hinzufügen' toggle reveals all four fields with correct data-testids. Backend verified: GET /staff/customers lists customers, POST /admin/phone-orders with custom_item only succeeds (TEL-00009 preview), created product gets SKU IND-xxx, is_active=false, special_category=INDIVIDUELL, does NOT leak into /api/sb/products?is_active=true. Preview endpoint no longer returns needs_password, now includes lead_time_text. POST /phone-orders/{sid}/set-password correctly removed (returns 405). Status PATCH to VERSENDET triggers delivery-note generation (upload + best-effort email); second VERSENDET PATCH remains 200 and does not re-trigger (guarded by before_row.status check). Email delivery to musterkunde@kupketuning.de fails at Resend (undeliverable_recipient) but request still 200 as designed - this is expected in test mode.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Admin > Bestandskunde dropdown", "issues": ["Minor React hydration warning in dev console: 'In HTML, <span> cannot be a child of <option>' - caused by Emergent devtools injecting x-component wrappers inside <option> labels. Not a functional bug; disappears in production build."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration7_features.py",
+    "/app/test_reports/pytest/iteration7.xml"
+  ],
+  "action_items": [
+    "(Carried over, non-blocking) Low-stock banner still fires for 56 seed products with stock_min_alert=0 - filter should require stock_min_alert > 0.",
+    "(Nice-to-have) /staff/customers endpoint returns full customer rows including internal uuid customer_id; consider trimming to {id,email,first_name,last_name,street,zip,city,country} for Bestandskunde dropdown surface."
+  ],
+  "critical_code_review_comments": [
+    "server.py sb_update_order_status: VERSENDET auto-email is best-effort inside try/except (good). However the Supabase storage upload (sb_db.upload_bytes) is also inside the same try, so if upload succeeds but email send fails the PDF is still uploaded as a side-effect - acceptable but worth logging the generated URL. Consider persisting delivery_note_url on orders row similarly to packing_slip_url for later retrieval.",
+    "server.py create_phone_order: when custom_item.shipping_cost_gross_override is set it is treated as cents-equivalent total shipping cost but shipping_options.display_name stays 'Hermes Versand' even if the method is e.g. ABHOLUNG. Minor UX nit.",
+    "server.py: INDIVIDUELL products get is_active=false but have price_net > 0; GET /api/sb/products with no filter STILL returns them. The public catalog correctly filters is_active=true so this is safe, but any admin listing of 'alle inaktiven' will mix one-off INDs with real inactive catalog items. Consider adding a special_category exclusion filter or UI label.",
+    "PhoneOrderConfirm.jsx: Register tab calls useAuth().register(email, password, '') which likely triggers backend validation. If email is pre-locked to preview.customer_email, duplicate-account error should be surfaced clearly - currently handled by setRegErr fallback. OK.",
+    "AuthContext.jsx: `const [user, setUser] = useState(window.location.hash?.includes('session_id=') ? null : null);` - the ternary is a no-op (both branches null). Looks like leftover from a previous iteration.",
+    "server.py /staff/customers returns `dict(r)` which includes the raw `id` (uuid). Fine for staff-only but ensure no password_hash column is being added to the customers table in future migrations."
+  ],
+  "updated_files": ["/app/backend/tests/test_iteration7_features.py (new, 20 tests, all PASS)"],
+  "success_rate": {"backend": "100% (20/20 iteration7 pytest)", "frontend": "100% for all requested flows"},
+  "test_credentials": "Admin: kupketuning@gmail.com / kupke-admin. Customer: musterkunde@kupketuning.de / Musterkunde2026!",
+  "seed_data_creation": "Created 3 phone orders (TEL-00008..00010) with INDIVIDUELL products (TEST_ prefix); 1 TEST_Normteil/Abverkauf regression products via existing test suites. All test data prefixed TEST_. Sample order 2026-00013 was briefly transitioned IN_BEARBEITUNG -> VERSENDET during tests to verify delivery-note auto-email; restored to original status after each test case.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "iteration 7 fully green. All features from current review request verified end-to-end on https://design-322.preview.emergentagent.com. The main agent's note that email delivery to musterkunde@kupketuning.de fails in Resend test mode is correct and expected (undeliverable_recipient 422) - the backend's try/except correctly swallows this. The PhoneOrderConfirm.jsx redirect-to-Google-OAuth works and localStorage.post_auth_redirect was verified to contain `/bestellung-bezahlen?session_id=<id>` after click. Guest flow redirects to live Stripe checkout URL. Admin Bestandskunde dropdown lists 1 customer (Max Musterkunde) + placeholder. Both backend_test.py and test_new_features.py from previous iterations still contain legacy X-Admin-Token and needs_password/set-password assertions respectively - those tests will fail if re-run but are superseded by test_iteration7_features.py for the current contract.",
+  "rca of the issue": "No bugs required RCA."
+}

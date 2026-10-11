@@ -69,6 +69,26 @@ all sessions), DATABASE_URL/SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY (user-owned p
 ref "calysfldoxbbtvveivhp" — auto-pauses on inactivity, see below), STRIPE_API_KEY/
 STRIPE_PUBLISHABLE_KEY/STRIPE_WEBHOOK_SECRET (test mode)
 
+## What's implemented (continued)
+- **2026-10-11 (Admin-Verbesserungen: Telefonbestellung, Lieferschein & Darstellung)**: Admin tab
+  headings bumped to `text-3xl` for readability (Übersicht/Produkte/Bestellungen/Anfragen/
+  Support/Benutzer). Telefonbestellung drawer: "Bestandskunde wählen" dropdown
+  (`GET /api/staff/customers`) auto-fills name/address from an existing customer; "+
+  Individuelles Produkt hinzufügen" lets admin add a one-off item (name, Nettopreis, optional
+  Versandkosten-Override, Versandlaufzeit-Text) — stored as a permanent but `is_active=false`
+  catalog product with new `special_category='INDIVIDUELL'` (SKU prefix `IND-`), never shown in
+  the public shop. Lieferschein (delivery note: items+qty+address, no prices) is downloadable
+  on-demand for any order via new `GET /api/sb/orders/{id}/delivery-note`, and auto-emailed to
+  the customer the first time staff set an order's status to VERSENDET (guarded against
+  re-sending on repeat status changes). Customer-facing `/bestellung-bezahlen` confirm page
+  replaced the old forced "set password" gate with three equal options when not logged in:
+  Anmelden (inline login), Registrieren (email/password, locked to the order's email, or "Mit
+  Google registrieren" — redirects back to this same page via a `post_auth_redirect` localStorage
+  key read by `AuthCallback.jsx`), or Als Gast bezahlen (no account, straight to Stripe). Already-
+  logged-in visitors skip straight to the pay button. Old `/phone-orders/{id}/set-password`
+  endpoint removed. Verified via testing_agent: 20/20 new backend pytest + 100% frontend flows
+  (iteration_7).
+
 ## P0/P1/P2 backlog remaining
 - P1 (blocked on user): Real Hermes API integration once user obtains Hermes Business API
   access — would replace manual label/return-label upload with full automation.
@@ -77,6 +97,11 @@ STRIPE_PUBLISHABLE_KEY/STRIPE_WEBHOOK_SECRET (test mode)
   single-reply MVP, planned as Phase 2 per user's approved plan.
 - P2: Saved addresses + "Bestellung erneut aufgeben" in customer account.
 - P2: Order status change audit log (who/when) — flagged by testing agent code review.
+- P2: Persist `delivery_note_url` on orders row (like packing_slip_url) instead of regenerating
+  on every on-demand download — flagged by testing agent code review (not blocking).
+- P2: Low-stock banner fires for seed products with `stock_min_alert=0`; filter should require
+  `stock_min_alert > 0` — flagged by testing agent, pre-existing, non-blocking.
+- P2: Trim `/api/staff/customers` response to only the fields the Bestandskunde dropdown needs.
 - P2 (future, needs asset from user): ~30s intro video of Thomas on homepage.
 - P3: Real Hermes API full automation; broader return/exchange self-service.
 
