@@ -16,7 +16,7 @@ BUCKET = 'product-images'
 VMAP = {'TRABANT': 'TR', 'WARTBURG': 'WA', 'B1000': 'B1', 'VW': 'VW', 'OPEL': 'OP'}
 TMAP = {'ORIGINAL': 'O', 'TUNING': 'T', 'RENNSPORT': 'R'}
 AMAP = {'MOTOR': 'MO', 'BREMSE': 'BR', 'FAHRWERK': 'FW', 'ABGAS': 'AB', 'ELEKTRIK': 'EL', 'KAROSSERIE': 'KA'}
-SPECIAL_PREFIX = {'NORMTEIL': 'NT', 'ABVERKAUF': 'AV'}
+SPECIAL_PREFIX = {'NORMTEIL': 'NT', 'ABVERKAUF': 'AV', 'INDIVIDUELL': 'IND'}
 
 _pool = None
 

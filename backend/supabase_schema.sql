@@ -319,3 +319,13 @@ create policy invoices_auth on invoices
 drop policy if exists counters_auth on counters;
 create policy counters_auth on counters
   for all to authenticated using (true) with check (true);
+
+-- Erweiterung: individuelle Telefonbestellungs-Produkte (dauerhaft im Katalog, aber inaktiv)
+do $$
+begin
+  if exists (select 1 from pg_constraint where conname = 'products_special_category_check') then
+    alter table products drop constraint products_special_category_check;
+  end if;
+  alter table products add constraint products_special_category_check
+    check (special_category is null or special_category in ('NORMTEIL','ABVERKAUF','INDIVIDUELL'));
+end $$;

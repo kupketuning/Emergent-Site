@@ -260,16 +260,33 @@ async def send_return_label_email(*, to: str, customer_name: str, order_number: 
 
 
 async def send_phone_order_email(*, to: str, name: str, order_number: str, items_summary: str,
-                                  total_gross: float, confirm_link: str) -> str | None:
+                                  total_gross: float, confirm_link: str, lead_time_text: str = "") -> str | None:
     title = '<h2 style="margin:0;font-size:20px">Ihre Bestellung bei Kupke Tuning</h2>'
+    lead_html = (f'<p style="color:#6b7280;font-size:13px">Lieferung: {escape(lead_time_text)}</p>'
+                 if lead_time_text else '')
     body = (
         f'<p>Hallo {escape(name) or ""},</p>'
         f'<p>wie telefonisch besprochen haben wir Ihre Bestellung <strong>{escape(order_number)}</strong> '
         'vorbereitet:</p>'
         f'<p style="background:#f4f5f7;border-radius:6px;padding:14px;white-space:pre-line">{escape(items_summary)}</p>'
+        f'{lead_html}'
         f'<p><strong>Gesamtbetrag: {total_gross:.2f} €</strong></p>'
         '<p>Bitte bestätigen Sie die Bestellung und schließen Sie die Zahlung ab:</p>'
         f'<p style="margin:20px 0">{_button(confirm_link, "Bestellung bestätigen & bezahlen")}</p>'
     )
     return await send_email(to=to, subject=f"Bitte bestätigen: Bestellung {order_number} – Kupke Tuning",
+                             html=_layout(title, body))
+
+
+async def send_delivery_note_email(*, to: str, customer_name: str, order_number: str,
+                                    pdf_url: str) -> str | None:
+    title = '<h2 style="margin:0;font-size:20px">Ihre Bestellung ist unterwegs</h2>'
+    body = (
+        f'<p>Hallo {escape(customer_name) or ""},</p>'
+        f'<p>Ihre Bestellung <strong>{escape(order_number)}</strong> wurde versendet. Den Lieferschein mit den '
+        'Artikeln und Ihrer Lieferadresse finden Sie hier:</p>'
+        f'<p style="margin:20px 0">{_button(pdf_url, "Lieferschein ansehen")}</p>'
+        '<p>Vielen Dank für Ihren Einkauf bei Kupke Tuning!</p>'
+    )
+    return await send_email(to=to, subject=f"Versendet: Bestellung {order_number} – Kupke Tuning",
                              html=_layout(title, body))

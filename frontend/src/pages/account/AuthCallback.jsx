@@ -18,11 +18,13 @@ const AuthCallback = () => {
     const sessionId = params.get('session_id');
     if (!sessionId) { navigate('/konto/anmelden', { replace: true }); return; }
     (async () => {
+      const target = localStorage.getItem('post_auth_redirect') || '/konto';
+      localStorage.removeItem('post_auth_redirect');
       try {
         const user = await api.googleSession(sessionId);
         setUser(user);
         window.history.replaceState({}, '', window.location.pathname);
-        navigate('/konto', { replace: true, state: { user } });
+        navigate(target, { replace: true, state: { user } });
       } catch {
         setError('Die Google-Anmeldung ist fehlgeschlagen. Bitte versuchen Sie es erneut.');
         setTimeout(() => navigate('/konto/anmelden', { replace: true }), 2000);

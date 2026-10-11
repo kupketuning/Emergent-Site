@@ -416,6 +416,14 @@ async def admin_overview(staff: dict = STAFF):
     }
 
 
+@api_router.get("/staff/customers")
+async def list_customers(staff: dict = STAFF):
+    pool = await sb_db.get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch("select * from customers order by email")
+    return [dict(r) for r in rows]
+
+
 @api_router.get("/products", response_model=List[Product])
 async def list_products(
     category: Optional[str] = None,
@@ -716,15 +724,20 @@ class PhoneOrderItem(BaseModel):
     quantity: int = 1
 
 
+class CustomItemInput(BaseModel):
+    name: str
+    price_net: float
+    tax_rate: float = 19
+    shipping_cost_gross_override: Optional[float] = None
+    lead_time_text: str = ""
+
+
 class PhoneOrderInput(BaseModel):
     customer: CheckoutCustomer
-    items: List[PhoneOrderItem]
+    items: List[PhoneOrderItem] = []
+    custom_item: Optional[CustomItemInput] = None
     shipping_method: str = "HERMES"
     origin_url: str
-
-
-class SetInitialPasswordInput(BaseModel):
-    password: str
 
 
 async def _resolve_line_items(conn, items):
@@ -813,7 +826,7 @@ async def create_checkout(req: CheckoutRequest):
 
 @api_router.post("/admin/phone-orders")
 async def create_phone_order(req: PhoneOrderInput, staff: dict = STAFF):
-    if not req.items:
+    if not req.items and not req.custom_item:
         raise HTTPException(status_code=400, detail="Mindestens ein Produkt angeben.")
     if req.shipping_method not in SHIPPING_RATES_CENTS:
         raise HTTPException(status_code=400, detail="Ungültige Versandart.")
@@ -821,16 +834,40 @@ async def create_phone_order(req: PhoneOrderInput, staff: dict = STAFF):
 
     pool = await sb_db.get_pool()
     async with pool.acquire() as conn:
-        line_items, resolved, subtotal_net, tax_total = await _resolve_line_items(conn, req.items)
-        user = await auth_service.get_user_by_email(conn, email)
-        if not user:
-            user = await conn.fetchrow(
-                "insert into users (email, name, role) values ($1,$2,'customer') returning *",
-                email, f"{req.customer.first_name} {req.customer.last_name}".strip())
+        if req.items:
+            line_items, resolved, subtotal_net, tax_total = await _resolve_line_items(conn, req.items)
+        else:
+            line_items, resolved, subtotal_net, tax_total = [], [], 0.0, 0.0
+
+        lead_time_text = ""
+        if req.custom_item:
+            ci = req.custom_item
+            sku = await sb_db.generate_special_sku(conn, 'INDIVIDUELL')
+            prod = await conn.fetchrow(
+                """insert into products (sku, name, price_net, tax_rate, special_category, is_active)
+                   values ($1,$2,$3,$4,'INDIVIDUELL', false) returning *""",
+                sku, ci.name, ci.price_net, ci.tax_rate)
+            net = float(prod['price_net'])
+            rate = float(prod['tax_rate'])
+            gross = round(net * (1 + rate / 100), 2)
+            line_items.append({
+                "price_data": {"currency": "eur", "product_data": {"name": prod['name']},
+                               "unit_amount": int(round(gross * 100))},
+                "quantity": 1,
+            })
+            subtotal_net += net
+            tax_total += gross - net
+            resolved.append({"product_id": str(prod['id']), "sku": prod['sku'], "name": prod['name'],
+                             "quantity": 1, "variant": "", "unit_price_net": net, "unit_price_gross": gross,
+                             "tax_rate": rate, "vehicle": None, "product_type": None, "assembly_group": None})
+            lead_time_text = ci.lead_time_text or ""
         seq = await conn.fetchval("select get_next_number('phone_order_preview')")
     preview_number = f"TEL-{seq:05d}"
 
-    ship_cents = SHIPPING_RATES_CENTS[req.shipping_method]
+    if req.custom_item and req.custom_item.shipping_cost_gross_override is not None:
+        ship_cents = int(round(req.custom_item.shipping_cost_gross_override * 100))
+    else:
+        ship_cents = SHIPPING_RATES_CENTS[req.shipping_method]
     shipping_options = []
     if ship_cents > 0:
         shipping_options = [{"shipping_rate_data": {
@@ -861,6 +898,7 @@ async def create_phone_order(req: PhoneOrderInput, staff: dict = STAFF):
         "created_at": datetime.now(timezone.utc),
         "phone_order": True,
         "preview_number": preview_number,
+        "lead_time_text": lead_time_text,
     })
     items_summary = "\n".join(f"{it['quantity']}x {it['name']} – {it['unit_price_gross']:.2f} €" for it in resolved)
     confirm_link = f"{req.origin_url}/bestellung-bezahlen?session_id={session.id}"
@@ -868,7 +906,7 @@ async def create_phone_order(req: PhoneOrderInput, staff: dict = STAFF):
         await email_service.send_phone_order_email(
             to=email, name=f"{req.customer.first_name} {req.customer.last_name}".strip(),
             order_number=preview_number, items_summary=items_summary,
-            total_gross=total_gross, confirm_link=confirm_link)
+            total_gross=total_gross, confirm_link=confirm_link, lead_time_text=lead_time_text)
     except Exception:
         logger.exception("Telefonbestellungs-E-Mail fehlgeschlagen für %s", email)
 
@@ -882,9 +920,6 @@ async def get_phone_order_preview(session_id: str):
         raise HTTPException(status_code=404, detail="Bestellung nicht gefunden.")
     if pending.get("finalized"):
         return {"finalized": True, "order_number": pending.get("order_number")}
-    pool = await sb_db.get_pool()
-    async with pool.acquire() as conn:
-        user = await auth_service.get_user_by_email(conn, pending["customer"]["email"])
     checkout_url = None
     try:
         session = await run_in_threadpool(stripe.checkout.Session.retrieve, session_id)
@@ -900,28 +935,9 @@ async def get_phone_order_preview(session_id: str):
         "shipping_cost_gross": pending["shipping_cost_gross"],
         "total_gross": pending["total_gross"],
         "customer_email": pending["customer"]["email"],
-        "needs_password": bool(user) and not user["password_hash"],
+        "lead_time_text": pending.get("lead_time_text") or "",
         "checkout_url": checkout_url,
     }
-
-
-@api_router.post("/phone-orders/{session_id}/set-password")
-async def set_initial_password(session_id: str, data: SetInitialPasswordInput, response: Response):
-    pending = await db.pending_checkouts.find_one({"session_id": session_id})
-    if not pending:
-        raise HTTPException(status_code=404, detail="Bestellung nicht gefunden.")
-    pool = await sb_db.get_pool()
-    async with pool.acquire() as conn:
-        user = await auth_service.get_user_by_email(conn, pending["customer"]["email"])
-        if not user:
-            raise HTTPException(status_code=404, detail="Konto nicht gefunden.")
-        if user["password_hash"]:
-            raise HTTPException(status_code=400, detail="Für dieses Konto ist bereits ein Passwort vergeben.")
-        user = await conn.fetchrow(
-            "update users set password_hash=$1 where id=$2 returning *",
-            auth_service.hash_password(data.password), user["id"])
-    auth_service.set_auth_cookies(response, str(user['id']), user['role'])
-    return auth_service.public_user(user)
 
 
 async def _finalize_order(session_id: str):
@@ -1066,6 +1082,14 @@ def _order_row(r):
     return d
 
 
+def _build_slip_items(items):
+    return [{
+        "sku": it.get("sku", ""), "name": it.get("name", ""),
+        "path": invoice.build_breadcrumb(it.get("vehicle"), it.get("product_type"), it.get("assembly_group")),
+        "quantity": it.get("quantity", 0),
+    } for it in (items or [])]
+
+
 @api_router.get("/sb/orders")
 async def sb_list_orders(staff: dict = STAFF):
     pool = await sb_db.get_pool()
@@ -1088,11 +1112,7 @@ async def sb_upload_shipping_label(order_id: str, file: UploadFile = File(...), 
             sb_db.upload_bytes, f"{order['order_number']}-label.pdf", label_bytes,
             file.content_type or "application/pdf", "shipping-labels")
 
-        slip_items = [{
-            "sku": it.get("sku", ""), "name": it.get("name", ""),
-            "path": invoice.build_breadcrumb(it.get("vehicle"), it.get("product_type"), it.get("assembly_group")),
-            "quantity": it.get("quantity", 0),
-        } for it in (order.get("items") or [])]
+        slip_items = _build_slip_items(order.get("items"))
         slip_bytes = await run_in_threadpool(
             lambda: invoice.generate_packing_slip_pdf(
                 order_number=order["order_number"], issue_date=datetime.now(timezone.utc),
@@ -1147,16 +1167,54 @@ async def sb_upload_return_label(order_id: str, file: UploadFile = File(...), st
     return _order_row(updated)
 
 
+@api_router.get("/sb/orders/{order_id}/delivery-note")
+async def sb_download_delivery_note(order_id: str, staff: dict = STAFF):
+    pool = await sb_db.get_pool()
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(ORDER_JOIN_SQL + " where o.id=$1", order_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Bestellung nicht gefunden")
+    order = _order_row(row)
+    pdf_bytes = await run_in_threadpool(
+        lambda: invoice.generate_packing_slip_pdf(
+            order_number=order["order_number"], issue_date=datetime.now(timezone.utc),
+            customer=order, items=_build_slip_items(order.get("items")),
+            title="LIEFERSCHEIN", footer_note="Vielen Dank für Ihren Einkauf bei Kupke Tuning!"))
+    return StreamingResponse(
+        io.BytesIO(pdf_bytes), media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="Lieferschein-{order["order_number"]}.pdf"'})
+
+
 @api_router.patch("/sb/orders/{order_id}/status")
 async def sb_update_order_status(order_id: str, data: OrderStatusInput, staff: dict = STAFF):
     if data.status not in ORDER_STATUSES:
         raise HTTPException(status_code=400, detail="Ungültiger Status")
     pool = await sb_db.get_pool()
     async with pool.acquire() as conn:
+        before_row = await conn.fetchrow(ORDER_JOIN_SQL + " where o.id=$1", order_id)
+        if not before_row:
+            raise HTTPException(status_code=404, detail="Bestellung nicht gefunden")
         updated = await conn.fetchrow(
             "update orders set status=$1 where id=$2 returning *", data.status, order_id)
-    if not updated:
-        raise HTTPException(status_code=404, detail="Bestellung nicht gefunden")
+
+    if data.status == 'VERSENDET' and before_row['status'] != 'VERSENDET':
+        before_order = _order_row(before_row)
+        try:
+            pdf_bytes = await run_in_threadpool(
+                lambda: invoice.generate_packing_slip_pdf(
+                    order_number=before_order["order_number"], issue_date=datetime.now(timezone.utc),
+                    customer=before_order, items=_build_slip_items(before_order.get("items")),
+                    title="LIEFERSCHEIN", footer_note="Vielen Dank für Ihren Einkauf bei Kupke Tuning!"))
+            delivery_note_url = await run_in_threadpool(
+                sb_db.upload_bytes, f"{before_order['order_number']}-lieferschein.pdf", pdf_bytes,
+                "application/pdf", "delivery-notes")
+            if before_order.get("customer_email"):
+                await email_service.send_delivery_note_email(
+                    to=before_order["customer_email"],
+                    customer_name=f"{before_order.get('first_name', '')} {before_order.get('last_name', '')}".strip(),
+                    order_number=before_order["order_number"], pdf_url=delivery_note_url)
+        except Exception:
+            logger.exception("Lieferschein-E-Mail fehlgeschlagen für Bestellung %s", order_id)
     return _order_row(updated)
 
 

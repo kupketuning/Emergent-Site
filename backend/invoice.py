@@ -180,11 +180,12 @@ def generate_invoice_pdf(*, invoice_number, order_number, issue_date, customer, 
     return buf.read()
 
 
-def generate_packing_slip_pdf(*, order_number, issue_date, customer, items):
-    """Packzettel für das Lager – Artikel/Menge/Adresse, ohne Preise. items: [{sku,name,path,quantity}]"""
+def generate_packing_slip_pdf(*, order_number, issue_date, customer, items, title='PACKZETTEL',
+                              footer_note='Bitte Menge vor Versand prüfen. Keine Preisangaben – nur zur internen Kommissionierung.'):
+    """Packzettel/Lieferschein – Artikel/Menge/Adresse, ohne Preise. items: [{sku,name,path,quantity}]"""
     buf = BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=18 * mm, rightMargin=18 * mm,
-                            topMargin=16 * mm, bottomMargin=16 * mm, title=f"Packzettel-{order_number}")
+                            topMargin=16 * mm, bottomMargin=16 * mm, title=f"{title}-{order_number}")
     styles = getSampleStyleSheet()
     base = ParagraphStyle('base2', parent=styles['Normal'], fontName='Helvetica', fontSize=9, leading=12, textColor=DARK)
     small = ParagraphStyle('small2', parent=base, fontSize=8, textColor=GREY, leading=11)
@@ -194,7 +195,7 @@ def generate_packing_slip_pdf(*, order_number, issue_date, customer, items):
     story = []
 
     d = issue_date.strftime('%d.%m.%Y') if isinstance(issue_date, datetime) else str(issue_date)
-    story.append(Paragraph('PACKZETTEL', h_title))
+    story.append(Paragraph(title, h_title))
     story.append(Spacer(1, 2 * mm))
     story.append(Paragraph(f"Bestellnummer: B-{order_number}  ·  Datum: {d}", small))
     story.append(Spacer(1, 6 * mm))
@@ -243,7 +244,7 @@ def generate_packing_slip_pdf(*, order_number, issue_date, customer, items):
     story.append(Spacer(1, 10 * mm))
     story.append(HRFlowable(width='100%', thickness=1, color=RED))
     story.append(Spacer(1, 3 * mm))
-    story.append(Paragraph('Bitte Menge vor Versand prüfen. Keine Preisangaben – nur zur internen Kommissionierung.', small))
+    story.append(Paragraph(footer_note, small))
 
     doc.build(story)
     buf.seek(0)

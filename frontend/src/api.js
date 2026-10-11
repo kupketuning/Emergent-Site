@@ -38,7 +38,6 @@ export const api = {
 
   // ---- Telefonbestellung (öffentlich, per E-Mail-Link) ----
   getPhoneOrderPreview: async (sessionId) => (await client.get(`/phone-orders/${sessionId}`)).data,
-  setInitialPassword: async (sessionId, password) => (await client.post(`/phone-orders/${sessionId}/set-password`, { password })).data,
 
   // ---- Mitarbeiter-Login (Admin / Bearbeiter) ----
   staffLogin: async (email, password) => (await client.post('/staff-auth/login', { email, password })).data,
@@ -49,6 +48,7 @@ export const api = {
   setStaffUserActive: async (userId, isActive) => (await client.patch(`/staff/users/${userId}`, { is_active: isActive })).data,
   getAdminOverview: async () => (await client.get('/admin/overview')).data,
   createPhoneOrder: async (data) => (await client.post('/admin/phone-orders', data)).data,
+  listCustomers: async () => (await client.get('/staff/customers')).data,
 
   // ---- Admin: Support-Anfragen & Bestellstatus ----
   listSupportRequests: async () => (await client.get('/staff/support-requests')).data,

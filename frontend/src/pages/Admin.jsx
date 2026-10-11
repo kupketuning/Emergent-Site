@@ -5,7 +5,7 @@ import {
   AlertTriangle, Upload, Loader2, LayoutDashboard, Users, Euro, ShoppingCart, UserPlus, Ban, CheckCircle2,
   MessageCircle, Phone, RotateCcw,
 } from 'lucide-react';
-import api from '../api';
+import api, { API } from '../api';
 import { VEHICLE_OPTIONS, TYPE_OPTIONS, ASSEMBLY_OPTIONS, MODEL_OPTIONS, SPECIAL_CATEGORY_OPTIONS, formatEuro } from '../mock';
 import Logo from '../components/Logo';
 
@@ -17,6 +17,7 @@ const emptyForm = {
 
 const emptyStaffForm = { email: '', password: '', name: '', role: 'bearbeiter' };
 const emptyPhoneOrder = { email: '', first_name: '', last_name: '', street: '', zip: '', city: '', country: 'DE', shipping_method: 'HERMES' };
+const emptyCustomItem = { name: '', price_net: '', shipping_override: '', lead_time_text: '' };
 
 const ORDER_STATUS_OPTIONS = [
   { value: 'NEU', label: 'Neu' },
@@ -85,6 +86,10 @@ const Admin = () => {
   const [phoneOrderProductId, setPhoneOrderProductId] = useState('');
   const [phoneOrderSaving, setPhoneOrderSaving] = useState(false);
   const [phoneOrderMsg, setPhoneOrderMsg] = useState('');
+  const [customers, setCustomers] = useState([]);
+  const [selectedCustomerId, setSelectedCustomerId] = useState('');
+  const [customItem, setCustomItem] = useState(emptyCustomItem);
+  const [showCustomItem, setShowCustomItem] = useState(false);
 
   const isAdmin = staffUser && staffUser.role === 'admin';
 
@@ -114,10 +119,13 @@ const Admin = () => {
   const loadSupportRequests = useCallback(async () => {
     try { setSupportRequests(await api.listSupportRequests()); } catch { /* ignore */ }
   }, []);
+  const loadCustomers = useCallback(async () => {
+    try { setCustomers(await api.listCustomers()); } catch { /* ignore */ }
+  }, []);
 
   useEffect(() => {
-    if (staffUser) { loadProducts(); loadInquiries(); loadOrders(); loadOverview(); loadSupportRequests(); if (isAdmin) loadStaffUsers(); }
-  }, [staffUser, isAdmin, loadProducts, loadInquiries, loadOrders, loadOverview, loadStaffUsers, loadSupportRequests]);
+    if (staffUser) { loadProducts(); loadInquiries(); loadOrders(); loadOverview(); loadSupportRequests(); loadCustomers(); if (isAdmin) loadStaffUsers(); }
+  }, [staffUser, isAdmin, loadProducts, loadInquiries, loadOrders, loadOverview, loadStaffUsers, loadSupportRequests, loadCustomers]);
 
   // Auto-SKU preview when creating
   useEffect(() => {
@@ -318,8 +326,19 @@ const Admin = () => {
     catch (err) { setStaffMsg(err?.response?.data?.detail || 'Aktion fehlgeschlagen.'); }
   };
 
-  const openPhoneOrder = () => { setPhoneOrderForm(emptyPhoneOrder); setPhoneOrderLines([]); setPhoneOrderMsg(''); setPhoneOrderOpen(true); };
+  const openPhoneOrder = () => {
+    setPhoneOrderForm(emptyPhoneOrder); setPhoneOrderLines([]); setPhoneOrderMsg('');
+    setSelectedCustomerId(''); setCustomItem(emptyCustomItem); setShowCustomItem(false);
+    setPhoneOrderOpen(true);
+  };
   const closePhoneOrder = () => setPhoneOrderOpen(false);
+  const selectExistingCustomer = (id) => {
+    setSelectedCustomerId(id);
+    const c = customers.find((x) => x.id === id);
+    if (!c) return;
+    setPhoneOrderForm((f) => ({ ...f, email: c.email, first_name: c.first_name || '', last_name: c.last_name || '',
+      street: c.street || '', zip: c.zip || '', city: c.city || '', country: c.country || 'DE' }));
+  };
   const addPhoneOrderLine = () => {
     if (!phoneOrderProductId) return;
     const p = products.find((x) => x.id === phoneOrderProductId);
@@ -329,22 +348,30 @@ const Admin = () => {
   };
   const setLineQty = (productId, qty) => setPhoneOrderLines((lines) => lines.map((l) => (l.product_id === productId ? { ...l, quantity: Math.max(1, Number(qty) || 1) } : l)));
   const removeLine = (productId) => setPhoneOrderLines((lines) => lines.filter((l) => l.product_id !== productId));
-  const phoneOrderTotal = phoneOrderLines.reduce((sum, l) => sum + (l.price_gross || 0) * l.quantity, 0);
+  const hasCustomItem = showCustomItem && customItem.name.trim() && customItem.price_net !== '';
+  const customItemGross = hasCustomItem ? Number(customItem.price_net) * 1.19 : 0;
+  const phoneOrderTotal = phoneOrderLines.reduce((sum, l) => sum + (l.price_gross || 0) * l.quantity, 0) + customItemGross;
 
   const submitPhoneOrder = async (e) => {
     e.preventDefault();
-    if (phoneOrderLines.length === 0) { setPhoneOrderMsg('Bitte mindestens ein Produkt hinzufügen.'); return; }
+    if (phoneOrderLines.length === 0 && !hasCustomItem) { setPhoneOrderMsg('Bitte mindestens ein Produkt oder ein individuelles Produkt hinzufügen.'); return; }
     setPhoneOrderSaving(true); setPhoneOrderMsg('');
     try {
       const res = await api.createPhoneOrder({
         customer: { email: phoneOrderForm.email, first_name: phoneOrderForm.first_name, last_name: phoneOrderForm.last_name,
                    street: phoneOrderForm.street, zip: phoneOrderForm.zip, city: phoneOrderForm.city, country: phoneOrderForm.country },
         items: phoneOrderLines.map((l) => ({ product_id: l.product_id, quantity: l.quantity })),
+        custom_item: hasCustomItem ? {
+          name: customItem.name, price_net: Number(customItem.price_net),
+          shipping_cost_gross_override: customItem.shipping_override !== '' ? Number(customItem.shipping_override) : null,
+          lead_time_text: customItem.lead_time_text,
+        } : null,
         shipping_method: phoneOrderForm.shipping_method,
         origin_url: window.location.origin,
       });
       setPhoneOrderMsg(`Bestellung ${res.preview_number} angelegt – Bestätigungs-/Bezahl-E-Mail wurde an ${phoneOrderForm.email} gesendet.`);
       setPhoneOrderLines([]);
+      setCustomItem(emptyCustomItem); setShowCustomItem(false);
     } catch (err) {
       setPhoneOrderMsg(err?.response?.data?.detail || 'Telefonbestellung konnte nicht angelegt werden.');
     } finally {
@@ -473,7 +500,7 @@ const Admin = () => {
 
         {tab === 'uebersicht' && (
           <>
-            <h1 className="font-logo text-2xl font-bold uppercase mb-6">Übersicht</h1>
+            <h1 className="font-logo text-3xl font-bold uppercase mb-6">Übersicht</h1>
             {!overview ? (
               <div className="flex items-center gap-2 text-gray-400"><Loader2 className="w-5 h-5 animate-spin" /> Kennzahlen werden geladen ...</div>
             ) : (
@@ -503,7 +530,7 @@ const Admin = () => {
           <>
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h1 className="font-logo text-2xl font-bold uppercase">Produkte verwalten</h1>
+                <h1 className="font-logo text-3xl font-bold uppercase">Produkte verwalten</h1>
                 <p className="text-gray-500 text-sm">{products.length} Produkte {loadingP && '(lädt ...)'}</p>
               </div>
               <button onClick={openCreate} className="flex items-center gap-2 bg-[#E63946] hover:bg-[#C92F3C] text-white font-semibold px-4 py-2.5 rounded-md transition-colors" data-testid="admin-new-product"><Plus className="w-5 h-5" /> Neues Produkt</button>
@@ -567,7 +594,7 @@ const Admin = () => {
           <>
             <div className="flex items-center justify-between mb-1 flex-wrap gap-4">
               <div>
-                <h1 className="font-logo text-2xl font-bold uppercase mb-1">Bestellungen</h1>
+                <h1 className="font-logo text-3xl font-bold uppercase mb-1">Bestellungen</h1>
                 <p className="text-gray-500 text-sm">{orders.length} Bestellungen</p>
               </div>
               <div className="flex items-end gap-3 flex-wrap">
@@ -596,7 +623,7 @@ const Admin = () => {
               <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
                 <table className="w-full text-sm">
                   <thead className="bg-gray-100 text-gray-600 text-left">
-                    <tr><th className="px-4 py-3">Nr.</th><th className="px-4 py-3">Datum</th><th className="px-4 py-3">Kunde</th><th className="px-4 py-3">Versand</th><th className="px-4 py-3">Summe</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Rechnung</th><th className="px-4 py-3">Versandlabel</th><th className="px-4 py-3">Rücksendelabel</th></tr>
+                    <tr><th className="px-4 py-3">Nr.</th><th className="px-4 py-3">Datum</th><th className="px-4 py-3">Kunde</th><th className="px-4 py-3">Versand</th><th className="px-4 py-3">Summe</th><th className="px-4 py-3">Status</th><th className="px-4 py-3">Rechnung</th><th className="px-4 py-3">Lieferschein</th><th className="px-4 py-3">Versandlabel</th><th className="px-4 py-3">Rücksendelabel</th></tr>
                   </thead>
                   <tbody>
                     {orders.map((o) => (
@@ -615,6 +642,9 @@ const Admin = () => {
                           {o.invoice_pdf_url
                             ? <a href={o.invoice_pdf_url} target="_blank" rel="noreferrer" className="text-[#E63946] font-semibold hover:underline" data-testid={`admin-invoice-${o.order_number}`}>{o.invoice_number} ↓</a>
                             : <span className="text-gray-400">–</span>}
+                        </td>
+                        <td className="px-4 py-2">
+                          <a href={`${API}/sb/orders/${o.id}/delivery-note`} target="_blank" rel="noreferrer" className="text-[#E63946] font-semibold hover:underline text-xs" data-testid={`admin-delivery-note-${o.order_number}`}>Lieferschein ↓</a>
                         </td>
                         <td className="px-4 py-2">
                           {o.shipping_label_url ? (
@@ -650,7 +680,7 @@ const Admin = () => {
 
         {tab === 'anfragen' && (
           <>
-            <h1 className="font-logo text-2xl font-bold uppercase mb-1">Anfragen</h1>
+            <h1 className="font-logo text-3xl font-bold uppercase mb-1">Anfragen</h1>
             <p className="text-gray-500 text-sm mb-6">{inquiries.length} Anfragen</p>
             {inquiries.length === 0 ? (
               <div className="bg-white border border-gray-200 rounded-lg p-10 text-center text-gray-400"><Inbox className="w-12 h-12 mx-auto mb-3" /> Noch keine Anfragen eingegangen.</div>
@@ -685,7 +715,7 @@ const Admin = () => {
 
         {tab === 'support' && (
           <>
-            <h1 className="font-logo text-2xl font-bold uppercase mb-1">Support-Anfragen</h1>
+            <h1 className="font-logo text-3xl font-bold uppercase mb-1">Support-Anfragen</h1>
             <p className="text-gray-500 text-sm mb-6">{supportRequests.length} Anfragen zu Bestellungen</p>
             {supportRequests.length === 0 ? (
               <div className="bg-white border border-gray-200 rounded-lg p-10 text-center text-gray-400"><MessageCircle className="w-12 h-12 mx-auto mb-3" /> Noch keine Support-Anfragen eingegangen.</div>
@@ -723,7 +753,7 @@ const Admin = () => {
 
         {tab === 'benutzer' && isAdmin && (
           <>
-            <h1 className="font-logo text-2xl font-bold uppercase mb-1">Benutzer verwalten</h1>
+            <h1 className="font-logo text-3xl font-bold uppercase mb-1">Benutzer verwalten</h1>
             <p className="text-gray-500 text-sm mb-6">Admin & Bearbeiter – persönliche Logins für euer Team.</p>
 
             <form onSubmit={createStaff} className="bg-white border border-gray-200 rounded-lg p-5 mb-6 grid grid-cols-1 sm:grid-cols-4 gap-3 items-end" data-testid="admin-create-staff-form">
@@ -879,6 +909,14 @@ const Admin = () => {
               <button type="button" onClick={closePhoneOrder} className="p-2 text-gray-500 hover:text-[#E63946]"><X className="w-5 h-5" /></button>
             </div>
             <div className="space-y-4">
+              <Field label="Bestandskunde wählen (optional)">
+                <select value={selectedCustomerId} onChange={(e) => selectExistingCustomer(e.target.value)} className="inp" data-testid="po-existing-customer">
+                  <option value="">Neuer Kunde ...</option>
+                  {customers.map((c) => (
+                    <option key={c.id} value={c.id}>{[c.first_name, c.last_name].filter(Boolean).join(' ') || c.email} – {c.email}</option>
+                  ))}
+                </select>
+              </Field>
               <Field label="Kunden-E-Mail *"><input required type="email" value={phoneOrderForm.email} onChange={(e) => setPhoneOrderForm((f) => ({ ...f, email: e.target.value }))} className="inp" data-testid="po-email" /></Field>
               <div className="grid grid-cols-2 gap-3">
                 <Field label="Vorname"><input value={phoneOrderForm.first_name} onChange={(e) => setPhoneOrderForm((f) => ({ ...f, first_name: e.target.value }))} className="inp" data-testid="po-first-name" /></Field>
@@ -916,6 +954,23 @@ const Admin = () => {
                 ))}
                 {phoneOrderLines.length > 0 && (
                   <div className="flex justify-between pt-3 font-bold text-[#17191d]"><span>Summe (brutto, zzgl. Versand)</span><span data-testid="po-total">{formatEuro(phoneOrderTotal)}</span></div>
+                )}
+              </div>
+
+              <div className="border-t border-gray-200 pt-4">
+                <button type="button" onClick={() => setShowCustomItem((s) => !s)} className="text-sm font-semibold text-[#E63946] hover:underline mb-3" data-testid="po-toggle-custom-item">
+                  {showCustomItem ? '− Individuelles Produkt entfernen' : '+ Individuelles Produkt hinzufügen'}
+                </button>
+                {showCustomItem && (
+                  <div className="space-y-3 bg-gray-50 border border-gray-200 rounded-md p-3" data-testid="po-custom-item-block">
+                    <Field label="Produktname *"><input value={customItem.name} onChange={(e) => setCustomItem((f) => ({ ...f, name: e.target.value }))} className="inp" data-testid="po-custom-name" /></Field>
+                    <div className="grid grid-cols-2 gap-3">
+                      <Field label="Nettopreis (€) *"><input value={customItem.price_net} onChange={(e) => setCustomItem((f) => ({ ...f, price_net: e.target.value }))} className="inp" data-testid="po-custom-price" /></Field>
+                      <Field label="Versandkosten (€, optional)"><input value={customItem.shipping_override} onChange={(e) => setCustomItem((f) => ({ ...f, shipping_override: e.target.value }))} placeholder="Standard übernehmen" className="inp" data-testid="po-custom-shipping" /></Field>
+                    </div>
+                    <Field label="Versandlaufzeit (optional)"><input value={customItem.lead_time_text} onChange={(e) => setCustomItem((f) => ({ ...f, lead_time_text: e.target.value }))} placeholder="z.B. Lieferung in 5 Werktagen nach Zahlungseingang" className="inp" data-testid="po-custom-lead-time" /></Field>
+                    <p className="text-xs text-gray-400">Wird als inaktives Produkt im Katalog gespeichert und erscheint nicht im Shop.</p>
+                  </div>
                 )}
               </div>
 
