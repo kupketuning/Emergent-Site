@@ -65,12 +65,12 @@ const Team = () => (
 
     <section className="bg-[#f4f5f7] border-y border-gray-200">
       <div className="max-w-[1300px] mx-auto px-4 py-14">
-        <div className="bg-white border border-[#2EC4B6]/40 rounded-xl p-8 flex flex-col md:flex-row items-center gap-6" data-testid="social-engagement-card">
-          <span className="w-16 h-16 rounded-full bg-[#2EC4B6]/10 flex items-center justify-center shrink-0">
-            <Heart className="w-8 h-8 text-[#2EC4B6]" strokeWidth={1.8} />
+        <div className="bg-white border border-[#148F81]/40 rounded-xl p-8 flex flex-col md:flex-row items-center gap-6" data-testid="social-engagement-card">
+          <span className="w-16 h-16 rounded-full bg-[#148F81]/10 flex items-center justify-center shrink-0">
+            <Heart className="w-8 h-8 text-[#148F81]" strokeWidth={1.8} />
           </span>
           <div>
-            <p className="text-[#2EC4B6] text-xs font-bold uppercase tracking-wide mb-1">Soziales Engagement</p>
+            <p className="text-[#148F81] text-xs font-bold uppercase tracking-wide mb-1">Soziales Engagement</p>
             <h2 className="font-logo text-2xl font-bold text-[#17191d] uppercase mb-2">{socialEngagement?.name}</h2>
             <p className="text-gray-600 text-sm leading-relaxed max-w-2xl">{socialEngagement?.text}</p>
           </div>

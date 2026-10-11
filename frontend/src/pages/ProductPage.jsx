@@ -57,7 +57,7 @@ const ProductPage = () => {
         {/* Gallery */}
         <div>
           <div className="border border-gray-200 rounded-lg p-8 flex items-center justify-center bg-white relative">
-            {product.dekra_certified && <span className="absolute top-4 left-4 bg-[#2EC4B6] text-white text-xs font-bold px-3 py-1 rounded uppercase">DEKRA-geprüft</span>}
+            {product.dekra_certified && <span className="absolute top-4 left-4 bg-[#148F81] text-white text-xs font-bold px-3 py-1 rounded uppercase">DEKRA-geprüft</span>}
             <img src={images[activeImg]} alt={product.name} className="max-h-[420px] object-contain" data-testid="product-main-image" />
           </div>
           {images.length > 1 && (
@@ -109,7 +109,7 @@ const ProductPage = () => {
           <div className="grid grid-cols-2 gap-4 mb-6">
             <div className="flex items-center gap-2 text-sm text-gray-600"><Truck className="w-5 h-5 text-[#E63946]" /> Täglicher Versand</div>
             <div className="flex items-center gap-2 text-sm text-gray-600"><ShieldCheck className="w-5 h-5 text-[#E63946]" /> Passgenauigkeit garantiert</div>
-            {product.dekra_certified && <div className="flex items-center gap-2 text-sm text-gray-600"><BadgeCheck className="w-5 h-5 text-[#2EC4B6]" /> DEKRA-geprüft</div>}
+            {product.dekra_certified && <div className="flex items-center gap-2 text-sm text-gray-600"><BadgeCheck className="w-5 h-5 text-[#148F81]" /> DEKRA-geprüft</div>}
           </div>
 
           <div className="border-t border-gray-200 pt-6">

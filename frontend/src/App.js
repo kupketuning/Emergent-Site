@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { CartProvider } from './context/CartContext';
 import { ProductsProvider } from './context/ProductsContext';
 import { CookieConsentProvider } from './context/CookieConsentContext';
+import { AuthProvider } from './context/AuthContext';
 import Layout from './components/Layout';
 import Home from './pages/Home';
 import Category from './pages/Category';
@@ -21,6 +22,11 @@ import Team from './pages/Team';
 import SpecialCategory from './pages/SpecialCategory';
 import StaticPage from './pages/StaticPage';
 import Admin from './pages/Admin';
+import Login from './pages/account/Login';
+import MyAccount from './pages/account/MyAccount';
+import ForgotPassword from './pages/account/ForgotPassword';
+import ResetPassword from './pages/account/ResetPassword';
+import AuthCallback from './pages/account/AuthCallback';
 
 function ScrollToTop() {
   const { pathname, search } = useLocation();
@@ -29,6 +35,10 @@ function ScrollToTop() {
 }
 
 function ShopRoutes() {
+  const location = useLocation();
+  if (location.hash && location.hash.includes('session_id=')) {
+    return <AuthCallback />;
+  }
   return (
     <Layout>
       <Routes>
@@ -46,6 +56,10 @@ function ShopRoutes() {
         <Route path="/search" element={<Search />} />
         <Route path="/kontakt" element={<Kontakt />} />
         <Route path="/team" element={<Team />} />
+        <Route path="/konto" element={<MyAccount />} />
+        <Route path="/konto/anmelden" element={<Login />} />
+        <Route path="/konto/passwort-vergessen" element={<ForgotPassword />} />
+        <Route path="/konto/passwort-zuruecksetzen" element={<ResetPassword />} />
         <Route
           path="/normteile"
           element={<SpecialCategory category="NORMTEIL" title="Normteile" description="Schrauben, Muttern, Splinte & Co. – ohne Fahrzeugzuordnung, direkt aus unserem Lager." path="/normteile" />}
@@ -78,7 +92,7 @@ function App() {
               <ScrollToTop />
               <Routes>
                 <Route path="/admin" element={<Admin />} />
-                <Route path="/*" element={<ShopRoutes />} />
+                <Route path="/*" element={<AuthProvider><ShopRoutes /></AuthProvider>} />
               </Routes>
             </BrowserRouter>
           </CookieConsentProvider>

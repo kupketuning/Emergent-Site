@@ -40,7 +40,7 @@ const Navigation = () => {
         <ul className="hidden lg:flex items-stretch">
           {[{ to: '/team', label: 'Teams' }, { to: '/ueber-uns', label: 'Über uns' }, { to: '/dekra', label: 'DEKRA' }, { to: '/kontakt', label: 'Kontakt' }].map((l) => (
             <li key={l.to}>
-              <Link to={l.to} data-testid={`nav-${l.to.replace('/', '')}`} className="flex items-center px-4 h-12 text-sm font-semibold text-gray-300 hover:text-white border-b-2 border-transparent hover:border-[#2EC4B6] transition-colors">
+              <Link to={l.to} data-testid={`nav-${l.to.replace('/', '')}`} className="flex items-center px-4 h-12 text-sm font-semibold text-gray-300 hover:text-white border-b-2 border-transparent hover:border-[#148F81] transition-colors">
                 {l.label}
               </Link>
             </li>
@@ -66,7 +66,7 @@ const Navigation = () => {
             ))}
             {[{ to: '/team', label: 'Teams' }, { to: '/ueber-uns', label: 'Über uns' }, { to: '/dekra', label: 'DEKRA-geprüfte Qualität' }, { to: '/kontakt', label: 'Kontakt' }].map((l) => (
               <li key={l.to} className="border-b border-white/10 last:border-0">
-                <Link to={l.to} onClick={() => setOpen(false)} className="block py-3 font-semibold text-gray-300 hover:text-[#2EC4B6]">{l.label}</Link>
+                <Link to={l.to} onClick={() => setOpen(false)} className="block py-3 font-semibold text-gray-300 hover:text-[#148F81]">{l.label}</Link>
               </li>
             ))}
           </ul>

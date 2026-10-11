@@ -176,3 +176,17 @@ async def send_packing_slip_email(*, order_number: str, packing_slip_url: str) -
     )
     return await send_email(to=WAREHOUSE_EMAIL, subject=f"Packzettel – Bestellung {order_number}",
                              html=_layout(title, body))
+
+
+async def send_password_reset_email(*, to: str, name: str, reset_link: str) -> str | None:
+    title = '<h2 style="margin:0;font-size:20px">Passwort zurücksetzen</h2>'
+    body = (
+        f'<p>Hallo {escape(name) or ""},</p>'
+        '<p>für Ihr Konto bei Kupke Tuning wurde ein neues Passwort angefordert. '
+        'Klicken Sie auf den folgenden Link, um ein neues Passwort zu vergeben. '
+        'Der Link ist 1 Stunde gültig:</p>'
+        f'<p style="margin:20px 0">{_button(reset_link, "Neues Passwort vergeben")}</p>'
+        '<p>Falls Sie diese Anfrage nicht gestellt haben, können Sie diese E-Mail ignorieren – '
+        'Ihr Passwort bleibt unverändert.</p>'
+    )
+    return await send_email(to=to, subject="Passwort zurücksetzen – Kupke Tuning", html=_layout(title, body))

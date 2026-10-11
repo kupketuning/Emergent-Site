@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Search, Heart, User, ShoppingCart, Phone } from 'lucide-react';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
 import { formatEuro } from '../mock';
 import Logo from './Logo';
 
@@ -9,6 +10,7 @@ const Header = () => {
   const [q, setQ] = useState('');
   const navigate = useNavigate();
   const { count, total } = useCart();
+  const { user } = useAuth();
 
   const submit = (e) => {
     e.preventDefault();
@@ -46,9 +48,9 @@ const Header = () => {
             <Heart className="w-5 h-5 mb-1" />
             Wunschliste
           </button>
-          <Link to="/konto" className="hidden sm:flex flex-col items-center text-xs hover:text-[#E63946] transition-colors">
+          <Link to={user ? '/konto' : '/konto/anmelden'} data-testid="header-account-link" className="hidden sm:flex flex-col items-center text-xs hover:text-[#E63946] transition-colors">
             <User className="w-5 h-5 mb-1" />
-            Konto
+            {user ? (user.name ? user.name.split(' ')[0] : 'Konto') : 'Konto'}
           </Link>
           <Link to="/cart" className="relative flex flex-col items-center text-xs hover:text-[#E63946] transition-colors">
             <div className="relative">

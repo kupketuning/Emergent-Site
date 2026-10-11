@@ -1,7 +1,10 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Lock, LogOut, Plus, Pencil, Trash2, X, Save, ArrowLeft, Package, Inbox, Mail, ShoppingBag, AlertTriangle, Upload, Loader2 } from 'lucide-react';
-import api, { getToken, setToken, clearToken } from '../api';
+import {
+  Lock, LogOut, Plus, Pencil, Trash2, X, Save, ArrowLeft, Package, Inbox, Mail, ShoppingBag,
+  AlertTriangle, Upload, Loader2, LayoutDashboard, Users, Euro, ShoppingCart, UserPlus, Ban, CheckCircle2,
+} from 'lucide-react';
+import api from '../api';
 import { VEHICLE_OPTIONS, TYPE_OPTIONS, ASSEMBLY_OPTIONS, MODEL_OPTIONS, SPECIAL_CATEGORY_OPTIONS, formatEuro } from '../mock';
 import Logo from '../components/Logo';
 
@@ -10,6 +13,8 @@ const emptyForm = {
   special_category: '', is_set: false, price_net: '', tax_rate: '19', stock_quantity: '0', stock_min_alert: '5',
   weight_grams: '0', sort_order: '100', is_active: true, dekra_certified: false, youtube_url: '', images: [],
 };
+
+const emptyStaffForm = { email: '', password: '', name: '', role: 'bearbeiter' };
 
 const Field = ({ label, children }) => (
   <div>
@@ -21,15 +26,27 @@ const Field = ({ label, children }) => (
 const label = (opts, v) => (opts.find((o) => o.value === v) || {}).label || v;
 
 const Admin = () => {
-  const [authed, setAuthed] = useState(!!getToken());
-  const [password, setPassword] = useState('');
+  const [staffUser, setStaffUser] = useState(null); // null=checking, false=anon, obj=angemeldet
+  const [loginForm, setLoginForm] = useState({ email: '', password: '' });
   const [loginErr, setLoginErr] = useState('');
-  const [tab, setTab] = useState('produkte');
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [forgotMode, setForgotMode] = useState(false);
+  const [forgotSent, setForgotSent] = useState(false);
+  const [resetToken] = useState(() => new URLSearchParams(window.location.search).get('token') || '');
+  const [resetPw, setResetPw] = useState({ password: '', confirm: '' });
+  const [resetErr, setResetErr] = useState('');
+  const [resetDone, setResetDone] = useState(false);
+  const [tab, setTab] = useState('uebersicht');
 
   const [products, setProducts] = useState([]);
   const [loadingP, setLoadingP] = useState(false);
   const [inquiries, setInquiries] = useState([]);
   const [orders, setOrders] = useState([]);
+  const [overview, setOverview] = useState(null);
+  const [staffList, setStaffList] = useState([]);
+  const [staffForm, setStaffForm] = useState(emptyStaffForm);
+  const [staffMsg, setStaffMsg] = useState('');
+  const [staffSaving, setStaffSaving] = useState(false);
 
   const [form, setForm] = useState(null);
   const [editingId, setEditingId] = useState(null);
@@ -43,6 +60,14 @@ const Admin = () => {
   const [exportMonth, setExportMonth] = useState(now.getMonth() + 1);
   const [exporting, setExporting] = useState(false);
 
+  const isAdmin = staffUser && staffUser.role === 'admin';
+
+  useEffect(() => {
+    (async () => {
+      try { setStaffUser(await api.staffMe()); } catch { setStaffUser(false); }
+    })();
+  }, []);
+
   const loadProducts = useCallback(async () => {
     setLoadingP(true);
     try { setProducts(await api.adminGetProducts()); } catch { /* ignore */ }
@@ -54,8 +79,16 @@ const Admin = () => {
   const loadOrders = useCallback(async () => {
     try { setOrders(await api.getOrders()); } catch { /* ignore */ }
   }, []);
+  const loadOverview = useCallback(async () => {
+    try { setOverview(await api.getAdminOverview()); } catch { /* ignore */ }
+  }, []);
+  const loadStaffUsers = useCallback(async () => {
+    try { setStaffList(await api.listStaffUsers()); } catch { /* ignore */ }
+  }, []);
 
-  useEffect(() => { if (authed) { loadProducts(); loadInquiries(); loadOrders(); } }, [authed, loadProducts, loadInquiries, loadOrders]);
+  useEffect(() => {
+    if (staffUser) { loadProducts(); loadInquiries(); loadOrders(); loadOverview(); if (isAdmin) loadStaffUsers(); }
+  }, [staffUser, isAdmin, loadProducts, loadInquiries, loadOrders, loadOverview, loadStaffUsers]);
 
   // Auto-SKU preview when creating
   useEffect(() => {
@@ -75,11 +108,30 @@ const Admin = () => {
 
   const login = async (e) => {
     e.preventDefault();
-    setLoginErr('');
-    try { const res = await api.login(password); setToken(res.token); setAuthed(true); }
-    catch { setLoginErr('Falsches Passwort.'); }
+    setLoginErr(''); setLoginLoading(true);
+    try { setStaffUser(await api.staffLogin(loginForm.email, loginForm.password)); }
+    catch (err) { setLoginErr(err?.response?.data?.detail || 'Anmeldung fehlgeschlagen.'); }
+    finally { setLoginLoading(false); }
   };
-  const logout = () => { clearToken(); setAuthed(false); setPassword(''); };
+  const logout = async () => {
+    try { await api.staffLogout(); } finally { setStaffUser(false); setTab('uebersicht'); }
+  };
+  const submitForgot = async (e) => {
+    e.preventDefault();
+    try { await api.forgotPassword(loginForm.email, `${window.location.origin}/admin`); } finally { setForgotSent(true); }
+  };
+  const submitReset = async (e) => {
+    e.preventDefault();
+    setResetErr('');
+    if (resetPw.password !== resetPw.confirm) { setResetErr('Die Passwörter stimmen nicht überein.'); return; }
+    if (resetPw.password.length < 8) { setResetErr('Das Passwort muss mindestens 8 Zeichen lang sein.'); return; }
+    try {
+      await api.resetPassword(resetToken, resetPw.password);
+      setResetDone(true);
+    } catch (err) {
+      setResetErr(err?.response?.data?.detail || 'Der Link ist ungültig oder abgelaufen.');
+    }
+  };
 
   const openCreate = () => { setForm({ ...emptyForm, images: [] }); setEditingId(null); };
   const openEdit = (p) => {
@@ -180,25 +232,100 @@ const Admin = () => {
     }
   };
 
+  const createStaff = async (e) => {
+    e.preventDefault();
+    setStaffSaving(true); setStaffMsg('');
+    try {
+      await api.createStaffUser(staffForm);
+      setStaffForm(emptyStaffForm);
+      await loadStaffUsers();
+      setStaffMsg(`Konto für ${staffForm.email} wurde angelegt.`);
+    } catch (err) {
+      setStaffMsg(err?.response?.data?.detail || 'Fehler beim Anlegen des Kontos.');
+    } finally {
+      setStaffSaving(false);
+    }
+  };
+  const toggleStaffActive = async (u) => {
+    try { await api.setStaffUserActive(u.id, !u.is_active); await loadStaffUsers(); }
+    catch (err) { setStaffMsg(err?.response?.data?.detail || 'Aktion fehlgeschlagen.'); }
+  };
+
   const lowStockProducts = products.filter((p) => (p.stock_min_alert ?? 0) > 0 && (p.stock_quantity ?? 0) <= p.stock_min_alert);
 
-  if (!authed) {
+  if (resetToken) {
     return (
       <div className="min-h-screen bg-[#17191d] flex items-center justify-center px-4">
-        <form onSubmit={login} className="bg-white rounded-xl p-8 w-full max-w-sm shadow-2xl">
+        <div className="bg-white rounded-xl p-8 w-full max-w-sm shadow-2xl">
+          <div className="flex items-center gap-2 mb-6">
+            <span className="w-10 h-10 rounded-lg bg-[#E63946] flex items-center justify-center text-white"><Lock className="w-5 h-5" /></span>
+            <div><h1 className="font-logo text-xl font-bold uppercase">Neues Passwort</h1><p className="text-xs text-gray-500">Kupke-Tuning Verwaltung</p></div>
+          </div>
+          {resetDone ? (
+            <div data-testid="admin-reset-success">
+              <p className="text-sm text-gray-600 mb-4">Passwort erfolgreich geändert.</p>
+              <a href="/admin" className="text-sm text-[#E63946] font-semibold hover:underline">Jetzt anmelden</a>
+            </div>
+          ) : (
+            <form onSubmit={submitReset}>
+              <label className="block text-sm font-semibold mb-1">Neues Passwort</label>
+              <input type="password" required minLength={8} value={resetPw.password} onChange={(e) => setResetPw((f) => ({ ...f, password: e.target.value }))} className="inp mb-3" data-testid="admin-reset-password" />
+              <label className="block text-sm font-semibold mb-1">Passwort bestätigen</label>
+              <input type="password" required minLength={8} value={resetPw.confirm} onChange={(e) => setResetPw((f) => ({ ...f, confirm: e.target.value }))} className="inp" data-testid="admin-reset-confirm" />
+              {resetErr && <p className="text-[#E63946] text-sm mt-2" data-testid="admin-reset-error">{resetErr}</p>}
+              <button type="submit" className="w-full mt-5 h-11 bg-[#E63946] hover:bg-[#C92F3C] text-white font-semibold rounded-md" data-testid="admin-reset-submit">Passwort speichern</button>
+            </form>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (staffUser === null) {
+    return <div className="min-h-screen bg-[#17191d] flex items-center justify-center text-white/60"><Loader2 className="w-6 h-6 animate-spin" /></div>;
+  }
+
+  if (!staffUser) {
+    return (
+      <div className="min-h-screen bg-[#17191d] flex items-center justify-center px-4">
+        <div className="bg-white rounded-xl p-8 w-full max-w-sm shadow-2xl">
           <div className="flex items-center gap-2 mb-6">
             <span className="w-10 h-10 rounded-lg bg-[#E63946] flex items-center justify-center text-white"><Lock className="w-5 h-5" /></span>
             <div>
-              <h1 className="font-logo text-xl font-bold uppercase">Admin-Login</h1>
+              <h1 className="font-logo text-xl font-bold uppercase">{forgotMode ? 'Passwort vergessen' : 'Mitarbeiter-Login'}</h1>
               <p className="text-xs text-gray-500">Kupke-Tuning Verwaltung</p>
             </div>
           </div>
-          <label className="block text-sm font-semibold mb-1">Passwort</label>
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="inp" placeholder="••••••••" data-testid="admin-password" />
-          {loginErr && <p className="text-[#E63946] text-sm mt-2" data-testid="admin-login-error">{loginErr}</p>}
-          <button type="submit" className="w-full mt-5 h-11 bg-[#E63946] hover:bg-[#C92F3C] text-white font-semibold rounded-md transition-colors" data-testid="admin-login-btn">Anmelden</button>
-          <Link to="/" className="block text-center mt-4 text-sm text-gray-500 hover:text-[#E63946]">← Zurück zum Shop</Link>
-        </form>
+
+          {forgotMode ? (
+            forgotSent ? (
+              <div data-testid="admin-forgot-sent">
+                <p className="text-sm text-gray-600 mb-4">Falls ein Konto mit dieser E-Mail-Adresse existiert, haben wir einen Link zum Zurücksetzen versendet.</p>
+                <button onClick={() => { setForgotMode(false); setForgotSent(false); }} className="text-sm text-[#E63946] font-semibold hover:underline">← Zurück zum Login</button>
+              </div>
+            ) : (
+              <form onSubmit={submitForgot}>
+                <label className="block text-sm font-semibold mb-1">E-Mail</label>
+                <input type="email" required value={loginForm.email} onChange={(e) => setLoginForm((f) => ({ ...f, email: e.target.value }))} className="inp" data-testid="admin-forgot-email" />
+                <button type="submit" className="w-full mt-5 h-11 bg-[#E63946] hover:bg-[#C92F3C] text-white font-semibold rounded-md transition-colors" data-testid="admin-forgot-submit">Link anfordern</button>
+                <button type="button" onClick={() => setForgotMode(false)} className="block w-full text-center mt-4 text-sm text-gray-500 hover:text-[#E63946]">← Zurück zum Login</button>
+              </form>
+            )
+          ) : (
+            <form onSubmit={login}>
+              <label className="block text-sm font-semibold mb-1">E-Mail</label>
+              <input type="email" required value={loginForm.email} onChange={(e) => setLoginForm((f) => ({ ...f, email: e.target.value }))} className="inp mb-3" data-testid="admin-email" />
+              <label className="block text-sm font-semibold mb-1">Passwort</label>
+              <input type="password" required value={loginForm.password} onChange={(e) => setLoginForm((f) => ({ ...f, password: e.target.value }))} className="inp" placeholder="••••••••" data-testid="admin-password" />
+              {loginErr && <p className="text-[#E63946] text-sm mt-2" data-testid="admin-login-error">{loginErr}</p>}
+              <button type="submit" disabled={loginLoading} className="w-full mt-5 h-11 bg-[#E63946] hover:bg-[#C92F3C] text-white font-semibold rounded-md transition-colors disabled:opacity-60" data-testid="admin-login-btn">
+                {loginLoading ? 'Einen Moment ...' : 'Anmelden'}
+              </button>
+              <button type="button" onClick={() => setForgotMode(true)} className="block w-full text-center mt-4 text-sm text-gray-500 hover:text-[#E63946]" data-testid="admin-forgot-link">Passwort vergessen?</button>
+              <Link to="/" className="block text-center mt-2 text-sm text-gray-500 hover:text-[#E63946]">← Zurück zum Shop</Link>
+            </form>
+          )}
+        </div>
       </div>
     );
   }
@@ -218,19 +345,50 @@ const Admin = () => {
             <span className="text-[#E63946] font-logo font-bold uppercase text-lg">Admin</span>
           </div>
           <div className="flex items-center gap-3">
+            <span className="text-sm text-gray-400" data-testid="admin-current-user">{staffUser.name || staffUser.email} · <span className="uppercase text-xs font-semibold text-gray-300">{staffUser.role}</span></span>
             <Link to="/" className="flex items-center gap-1 text-sm text-gray-300 hover:text-white"><ArrowLeft className="w-4 h-4" /> Shop</Link>
             <button onClick={logout} className="flex items-center gap-1 text-sm bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-md" data-testid="admin-logout"><LogOut className="w-4 h-4" /> Abmelden</button>
           </div>
         </div>
         <div className="max-w-[1300px] mx-auto px-4 flex gap-1">
+          <TabBtn id="uebersicht" icon={LayoutDashboard}>Übersicht</TabBtn>
           <TabBtn id="produkte" icon={Package}>Produkte</TabBtn>
           <TabBtn id="bestellungen" icon={ShoppingBag} count={orders.length}>Bestellungen</TabBtn>
           <TabBtn id="anfragen" icon={Inbox} count={inquiries.length}>Anfragen</TabBtn>
+          {isAdmin && <TabBtn id="benutzer" icon={Users} count={staffList.length}>Benutzer</TabBtn>}
         </div>
       </div>
 
       <div className="max-w-[1300px] mx-auto px-4 py-8">
         {msg && <div className="mb-4 bg-green-50 border border-green-200 text-green-800 text-sm px-4 py-2 rounded-md" data-testid="admin-msg">{msg}</div>}
+
+        {tab === 'uebersicht' && (
+          <>
+            <h1 className="font-logo text-2xl font-bold uppercase mb-6">Übersicht</h1>
+            {!overview ? (
+              <div className="flex items-center gap-2 text-gray-400"><Loader2 className="w-5 h-5 animate-spin" /> Kennzahlen werden geladen ...</div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" data-testid="admin-overview-tiles">
+                <div className="bg-white border border-gray-200 rounded-lg p-5" data-testid="overview-orders">
+                  <div className="flex items-center gap-2 text-gray-400 text-xs font-semibold uppercase mb-2"><ShoppingCart className="w-4 h-4" /> Bestellungen (Monat)</div>
+                  <p className="text-3xl font-bold text-[#17191d]">{overview.orders_this_month}</p>
+                </div>
+                <div className="bg-white border border-gray-200 rounded-lg p-5" data-testid="overview-revenue">
+                  <div className="flex items-center gap-2 text-gray-400 text-xs font-semibold uppercase mb-2"><Euro className="w-4 h-4" /> Umsatz (Monat)</div>
+                  <p className="text-3xl font-bold text-[#17191d]">{formatEuro(overview.revenue_this_month)}</p>
+                </div>
+                <div className="bg-white border border-gray-200 rounded-lg p-5" data-testid="overview-inquiries">
+                  <div className="flex items-center gap-2 text-gray-400 text-xs font-semibold uppercase mb-2"><Inbox className="w-4 h-4" /> Offene Anfragen</div>
+                  <p className="text-3xl font-bold text-[#17191d]">{overview.open_inquiries}</p>
+                </div>
+                <div className={`bg-white border rounded-lg p-5 ${overview.low_stock_count > 0 ? 'border-[#f3c6c6]' : 'border-gray-200'}`} data-testid="overview-low-stock">
+                  <div className="flex items-center gap-2 text-gray-400 text-xs font-semibold uppercase mb-2"><AlertTriangle className="w-4 h-4" /> Niedriger Bestand</div>
+                  <p className={`text-3xl font-bold ${overview.low_stock_count > 0 ? 'text-[#E63946]' : 'text-[#17191d]'}`}>{overview.low_stock_count}</p>
+                </div>
+              </div>
+            )}
+          </>
+        )}
 
         {tab === 'produkte' && (
           <>
@@ -394,6 +552,56 @@ const Admin = () => {
                 ))}
               </div>
             )}
+          </>
+        )}
+
+        {tab === 'benutzer' && isAdmin && (
+          <>
+            <h1 className="font-logo text-2xl font-bold uppercase mb-1">Benutzer verwalten</h1>
+            <p className="text-gray-500 text-sm mb-6">Admin & Bearbeiter – persönliche Logins für euer Team.</p>
+
+            <form onSubmit={createStaff} className="bg-white border border-gray-200 rounded-lg p-5 mb-6 grid grid-cols-1 sm:grid-cols-4 gap-3 items-end" data-testid="admin-create-staff-form">
+              <Field label="Name"><input value={staffForm.name} onChange={(e) => setStaffForm((f) => ({ ...f, name: e.target.value }))} className="inp" data-testid="staff-name" /></Field>
+              <Field label="E-Mail"><input type="email" required value={staffForm.email} onChange={(e) => setStaffForm((f) => ({ ...f, email: e.target.value }))} className="inp" data-testid="staff-email" /></Field>
+              <Field label="Startpasswort"><input type="password" required minLength={8} value={staffForm.password} onChange={(e) => setStaffForm((f) => ({ ...f, password: e.target.value }))} className="inp" data-testid="staff-password" /></Field>
+              <Field label="Rolle">
+                <select value={staffForm.role} onChange={(e) => setStaffForm((f) => ({ ...f, role: e.target.value }))} className="inp" data-testid="staff-role">
+                  <option value="bearbeiter">Bearbeiter</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </Field>
+              <div className="sm:col-span-4">
+                <button type="submit" disabled={staffSaving} className="flex items-center gap-2 bg-[#E63946] hover:bg-[#C92F3C] text-white font-semibold px-4 py-2.5 rounded-md disabled:opacity-60" data-testid="staff-create-submit">
+                  <UserPlus className="w-4 h-4" /> {staffSaving ? 'Wird angelegt ...' : 'Konto anlegen'}
+                </button>
+                {staffMsg && <span className="ml-3 text-sm text-gray-600" data-testid="staff-msg">{staffMsg}</span>}
+              </div>
+            </form>
+
+            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-100 text-gray-600 text-left">
+                  <tr><th className="px-4 py-3">Name</th><th className="px-4 py-3">E-Mail</th><th className="px-4 py-3">Rolle</th><th className="px-4 py-3">Status</th><th className="px-4 py-3 text-right">Aktion</th></tr>
+                </thead>
+                <tbody>
+                  {staffList.map((u) => (
+                    <tr key={u.id} className="border-t border-gray-100" data-testid={`staff-row-${u.email}`}>
+                      <td className="px-4 py-2">{u.name || '–'}</td>
+                      <td className="px-4 py-2">{u.email}</td>
+                      <td className="px-4 py-2 uppercase text-xs font-semibold text-gray-500">{u.role}</td>
+                      <td className="px-4 py-2"><span className={`text-xs font-semibold px-2 py-1 rounded ${u.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-500'}`}>{u.is_active ? 'Aktiv' : 'Deaktiviert'}</span></td>
+                      <td className="px-4 py-2 text-right">
+                        {u.id !== staffUser.id && (
+                          <button onClick={() => toggleStaffActive(u)} className="inline-flex items-center gap-1 text-xs font-semibold text-gray-500 hover:text-[#E63946]" data-testid={`staff-toggle-${u.email}`}>
+                            {u.is_active ? <><Ban className="w-3.5 h-3.5" /> Deaktivieren</> : <><CheckCircle2 className="w-3.5 h-3.5" /> Aktivieren</>}
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </>
         )}
       </div>

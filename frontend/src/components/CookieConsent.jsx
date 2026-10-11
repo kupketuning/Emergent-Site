@@ -20,7 +20,7 @@ const CookieConsent = () => {
           data-testid="cookie-banner"
         >
           <div className="max-w-[1300px] mx-auto px-4 py-5 flex flex-col sm:flex-row items-center gap-4">
-            <Cookie className="w-8 h-8 text-[#2EC4B6] shrink-0" strokeWidth={1.6} />
+            <Cookie className="w-8 h-8 text-[#148F81] shrink-0" strokeWidth={1.6} />
             <p className="text-sm text-gray-300 flex-1">
               Wir verwenden Cookies, um unsere Website funktionsfähig zu halten und, mit Deiner Einwilligung, unser Angebot zu verbessern. Mehr dazu in unserer{' '}
               <Link to="/datenschutz" className="underline hover:text-white">Datenschutzerklärung</Link>.

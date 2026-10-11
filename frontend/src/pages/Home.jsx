@@ -34,7 +34,7 @@ const Home = () => {
           <p className="text-white/90 text-base md:text-lg font-normal mb-3 max-w-2xl">
             Ersatzteile und Tuningteile für Trabant, Wartburg, Barkas, VW und Opel
           </p>
-          <p className="text-[#2EC4B6] text-lg md:text-2xl font-bold mb-8 max-w-2xl" data-testid="hero-proof">
+          <p className="text-[#148F81] text-lg md:text-2xl font-bold mb-8 max-w-2xl" data-testid="hero-proof">
             Über 2000 km Nordschleifen-Erfahrung mit unserem Fahrzeug
           </p>
           <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto justify-center">
@@ -57,7 +57,7 @@ const Home = () => {
             <p className="text-sm text-gray-600 mt-1 max-w-[260px]">Über Jahrzehnte Erfahrung im Trabant-Motorsport</p>
           </div>
           <div className="flex flex-col items-center px-4 md:border-x border-gray-200">
-            <BadgeCheck className="w-9 h-9 text-[#2EC4B6] mb-3" strokeWidth={1.7} />
+            <BadgeCheck className="w-9 h-9 text-[#148F81] mb-3" strokeWidth={1.7} />
             <p className="font-logo text-xl font-bold text-[#333333] uppercase">DEKRA-Begutachtung</p>
             <p className="text-sm text-gray-600 mt-1 max-w-[260px]">Unsere Bauteile wurden durch die DEKRA begutachtet</p>
           </div>

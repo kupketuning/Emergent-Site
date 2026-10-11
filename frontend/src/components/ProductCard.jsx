@@ -26,7 +26,7 @@ const ProductCard = ({ product }) => {
           <span className="absolute top-3 left-3 bg-[#E63946] text-white text-[11px] font-bold px-2.5 py-1 rounded uppercase tracking-wide">{product.badge}</span>
         )}
         {product.dekra_certified && (
-          <span className="absolute top-3 left-3 mt-7 bg-[#2EC4B6] text-white text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide">DEKRA</span>
+          <span className="absolute top-3 left-3 mt-7 bg-[#148F81] text-white text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide">DEKRA</span>
         )}
         <button aria-label="Merken" onClick={(e) => { e.preventDefault(); alert('Wunschliste folgt in Kürze!'); }} className="absolute top-3 right-3 w-9 h-9 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-400 hover:text-[#E63946] hover:border-[#E63946] transition-colors">
           <Heart className="w-4 h-4" />

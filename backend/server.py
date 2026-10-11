@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Header, Query, UploadFile, File, Request
+from fastapi import FastAPI, APIRouter, HTTPException, Header, Query, UploadFile, File, Request, Response, Depends
 from starlette.concurrency import run_in_threadpool
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
@@ -7,7 +7,7 @@ import os
 import json
 import logging
 from pathlib import Path
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, EmailStr
 from typing import List, Optional
 import uuid
 from datetime import datetime, timezone
@@ -23,6 +23,7 @@ import sb_db
 import invoice
 import image_util
 import email_service
+import auth_service
 from fastapi.responses import StreamingResponse
 
 ROOT_DIR = Path(__file__).parent
@@ -33,6 +34,7 @@ client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
 ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'kupke-admin')
+ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL')
 
 stripe.api_key = os.environ['STRIPE_API_KEY']
 STRIPE_WEBHOOK_SECRET = os.environ.get('STRIPE_WEBHOOK_SECRET', '')
@@ -40,6 +42,15 @@ SHIPPING_RATES_CENTS = {'HERMES': 595, 'ABHOLUNG': 0}
 
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
+
+STAFF = Depends(auth_service.require_role(*auth_service.STAFF_ROLES))
+ADMIN_ONLY = Depends(auth_service.require_role('admin'))
+CURRENT_USER = Depends(auth_service.get_current_user)
+
+
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
 
 
 # ---------------- Models ----------------
@@ -116,13 +127,40 @@ class InquiryCreate(BaseModel):
     message: str
 
 
+class RegisterInput(BaseModel):
+    email: EmailStr
+    password: str
+    name: str = ""
+
+
 class LoginInput(BaseModel):
+    email: EmailStr
     password: str
 
 
-def _check_admin(token: Optional[str]):
-    if token != ADMIN_PASSWORD:
-        raise HTTPException(status_code=401, detail="Nicht autorisiert")
+class ForgotPasswordInput(BaseModel):
+    email: EmailStr
+    reset_url_base: str
+
+
+class ResetPasswordInput(BaseModel):
+    token: str
+    new_password: str
+
+
+class GoogleSessionInput(BaseModel):
+    session_id: str
+
+
+class StaffCreateInput(BaseModel):
+    email: EmailStr
+    password: str
+    name: str = ""
+    role: str = "bearbeiter"
+
+
+class StaffUpdateInput(BaseModel):
+    is_active: bool
 
 
 def _clean(doc: dict) -> dict:
@@ -141,11 +179,166 @@ async def get_categories():
     return CATEGORIES
 
 
-@api_router.post("/admin/login")
-async def admin_login(data: LoginInput):
-    if data.password != ADMIN_PASSWORD:
-        raise HTTPException(status_code=401, detail="Falsches Passwort")
-    return {"token": ADMIN_PASSWORD}
+# ==================== Kundenkonto (E-Mail/Passwort + Google) ====================
+@api_router.post("/auth/register")
+async def auth_register(data: RegisterInput, response: Response):
+    pool = await sb_db.get_pool()
+    async with pool.acquire() as conn:
+        existing = await auth_service.get_user_by_email(conn, data.email)
+        if existing:
+            raise HTTPException(status_code=409, detail="Für diese E-Mail-Adresse besteht bereits ein Konto.")
+        user = await conn.fetchrow(
+            "insert into users (email, password_hash, name, role) values ($1,$2,$3,'customer') returning *",
+            data.email.lower().strip(), auth_service.hash_password(data.password), data.name)
+    auth_service.set_auth_cookies(response, str(user['id']), user['role'])
+    return auth_service.public_user(user)
+
+
+@api_router.post("/auth/login")
+async def auth_login(data: LoginInput, response: Response):
+    pool = await sb_db.get_pool()
+    async with pool.acquire() as conn:
+        user = await auth_service.authenticate(conn, data.email, data.password)
+    auth_service.set_auth_cookies(response, str(user['id']), user['role'])
+    return auth_service.public_user(user)
+
+
+@api_router.post("/auth/google/session")
+async def auth_google_session(data: GoogleSessionInput, response: Response):
+    profile = await auth_service.exchange_google_session(data.session_id)
+    pool = await sb_db.get_pool()
+    async with pool.acquire() as conn:
+        user = await auth_service.find_or_create_google_user(conn, profile)
+    auth_service.set_auth_cookies(response, str(user['id']), user['role'])
+    return auth_service.public_user(user)
+
+
+@api_router.post("/auth/logout")
+async def auth_logout(response: Response):
+    auth_service.clear_auth_cookies(response)
+    return {"success": True}
+
+
+@api_router.get("/auth/me")
+async def auth_me(user: dict = CURRENT_USER):
+    return user
+
+
+@api_router.post("/auth/forgot-password")
+async def auth_forgot_password(data: ForgotPasswordInput):
+    pool = await sb_db.get_pool()
+    async with pool.acquire() as conn:
+        user = await auth_service.get_user_by_email(conn, data.email)
+        if user:
+            token = await auth_service.create_reset_token(conn, user['id'])
+            try:
+                await email_service.send_password_reset_email(
+                    to=user['email'], name=user.get('name') or '',
+                    reset_link=f"{data.reset_url_base}?token={token}")
+            except Exception:
+                logger.exception("Passwort-Reset-E-Mail fehlgeschlagen für %s", user['email'])
+    return {"success": True}
+
+
+@api_router.post("/auth/reset-password")
+async def auth_reset_password(data: ResetPasswordInput):
+    pool = await sb_db.get_pool()
+    async with pool.acquire() as conn:
+        await auth_service.consume_reset_token(conn, data.token, data.new_password)
+    return {"success": True}
+
+
+@api_router.get("/account/orders")
+async def account_orders(user: dict = CURRENT_USER):
+    pool = await sb_db.get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            """select o.*, i.invoice_number, i.pdf_url as invoice_pdf_url
+               from orders o
+               join customers c on c.id = o.customer_id
+               left join invoices i on i.id = o.invoice_id
+               where c.email = $1
+               order by o.created_at desc""", user['email'])
+    return [_order_row(r) for r in rows]
+
+
+# ==================== Mitarbeiter-Login (Admin / Bearbeiter) ====================
+@api_router.post("/staff-auth/login")
+async def staff_login(data: LoginInput, response: Response):
+    pool = await sb_db.get_pool()
+    async with pool.acquire() as conn:
+        user = await auth_service.authenticate(conn, data.email, data.password)
+    if user['role'] not in auth_service.STAFF_ROLES:
+        raise HTTPException(status_code=403, detail="Dieses Konto hat keinen Zugang zum Admin-Bereich.")
+    auth_service.set_auth_cookies(response, str(user['id']), user['role'])
+    return auth_service.public_user(user)
+
+
+@api_router.post("/staff-auth/logout")
+async def staff_logout(response: Response):
+    auth_service.clear_auth_cookies(response)
+    return {"success": True}
+
+
+@api_router.get("/staff-auth/me")
+async def staff_me(staff: dict = STAFF):
+    return staff
+
+
+@api_router.get("/staff/users")
+async def list_staff_users(admin: dict = ADMIN_ONLY):
+    pool = await sb_db.get_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            "select * from users where role in ('admin','bearbeiter') order by created_at")
+    return [auth_service.public_user(r) for r in rows]
+
+
+@api_router.post("/staff/users")
+async def create_staff_user(data: StaffCreateInput, admin: dict = ADMIN_ONLY):
+    if data.role not in auth_service.STAFF_ROLES:
+        raise HTTPException(status_code=400, detail="Ungültige Rolle")
+    pool = await sb_db.get_pool()
+    async with pool.acquire() as conn:
+        existing = await auth_service.get_user_by_email(conn, data.email)
+        if existing:
+            raise HTTPException(status_code=409, detail="Für diese E-Mail-Adresse besteht bereits ein Konto.")
+        user = await conn.fetchrow(
+            "insert into users (email, password_hash, name, role) values ($1,$2,$3,$4) returning *",
+            data.email.lower().strip(), auth_service.hash_password(data.password), data.name, data.role)
+    return auth_service.public_user(user)
+
+
+@api_router.patch("/staff/users/{user_id}")
+async def update_staff_user(user_id: str, data: StaffUpdateInput, admin: dict = ADMIN_ONLY):
+    if user_id == admin['id'] and not data.is_active:
+        raise HTTPException(status_code=400, detail="Du kannst dein eigenes Konto nicht deaktivieren.")
+    pool = await sb_db.get_pool()
+    async with pool.acquire() as conn:
+        user = await conn.fetchrow(
+            "update users set is_active=$1 where id=$2 and role in ('admin','bearbeiter') returning *",
+            data.is_active, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="Mitarbeiter nicht gefunden")
+    return auth_service.public_user(user)
+
+
+@api_router.get("/admin/overview")
+async def admin_overview(staff: dict = STAFF):
+    pool = await sb_db.get_pool()
+    async with pool.acquire() as conn:
+        orders_row = await conn.fetchrow(
+            """select count(*) as cnt, coalesce(sum(total_gross),0) as revenue
+               from orders where created_at >= date_trunc('month', now()) and status <> 'STORNIERT'""")
+        low_stock = await conn.fetchval(
+            "select count(*) from products where stock_min_alert > 0 and stock_quantity <= stock_min_alert and is_active=true")
+    open_inquiries = await db.inquiries.count_documents({"handled": False})
+    return {
+        "orders_this_month": orders_row['cnt'],
+        "revenue_this_month": float(orders_row['revenue']),
+        "open_inquiries": open_inquiries,
+        "low_stock_count": low_stock,
+    }
 
 
 @api_router.get("/products", response_model=List[Product])
@@ -180,16 +373,14 @@ async def get_product(product_id: str):
 
 
 @api_router.post("/products", response_model=Product)
-async def create_product(data: ProductCreate, x_admin_token: Optional[str] = Header(None)):
-    _check_admin(x_admin_token)
+async def create_product(data: ProductCreate, staff: dict = STAFF):
     product = Product(**data.dict())
     await db.products.insert_one(product.dict())
     return product
 
 
 @api_router.put("/products/{product_id}", response_model=Product)
-async def update_product(product_id: str, data: ProductUpdate, x_admin_token: Optional[str] = Header(None)):
-    _check_admin(x_admin_token)
+async def update_product(product_id: str, data: ProductUpdate, staff: dict = STAFF):
     existing = await db.products.find_one({"id": product_id})
     if not existing:
         raise HTTPException(status_code=404, detail="Produkt nicht gefunden")
@@ -201,8 +392,7 @@ async def update_product(product_id: str, data: ProductUpdate, x_admin_token: Op
 
 
 @api_router.delete("/products/{product_id}")
-async def delete_product(product_id: str, x_admin_token: Optional[str] = Header(None)):
-    _check_admin(x_admin_token)
+async def delete_product(product_id: str, staff: dict = STAFF):
     res = await db.products.delete_one({"id": product_id})
     if res.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Produkt nicht gefunden")
@@ -217,15 +407,13 @@ async def create_inquiry(data: InquiryCreate):
 
 
 @api_router.get("/inquiries", response_model=List[Inquiry])
-async def list_inquiries(x_admin_token: Optional[str] = Header(None)):
-    _check_admin(x_admin_token)
+async def list_inquiries(staff: dict = STAFF):
     docs = await db.inquiries.find().sort("created_at", -1).to_list(1000)
     return [Inquiry(**_clean(d)) for d in docs]
 
 
 @api_router.delete("/inquiries/{inquiry_id}")
-async def delete_inquiry(inquiry_id: str, x_admin_token: Optional[str] = Header(None)):
-    _check_admin(x_admin_token)
+async def delete_inquiry(inquiry_id: str, staff: dict = STAFF):
     res = await db.inquiries.delete_one({"id": inquiry_id})
     if res.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Anfrage nicht gefunden")
@@ -277,8 +465,7 @@ def _coerce(data: dict) -> dict:
 @api_router.get("/sb/next-sku")
 async def sb_next_sku(vehicle: Optional[str] = None, product_type: Optional[str] = None,
                       assembly_group: Optional[str] = None, is_set: bool = False,
-                      special_category: Optional[str] = None, x_admin_token: Optional[str] = Header(None)):
-    _check_admin(x_admin_token)
+                      special_category: Optional[str] = None, staff: dict = STAFF):
     pool = await sb_db.get_pool()
     async with pool.acquire() as conn:
         if special_category:
@@ -324,8 +511,7 @@ async def sb_get_product(pid: str):
 
 
 @api_router.post("/sb/products")
-async def sb_create_product(data: dict, x_admin_token: Optional[str] = Header(None)):
-    _check_admin(x_admin_token)
+async def sb_create_product(data: dict, staff: dict = STAFF):
     pool = await sb_db.get_pool()
     async with pool.acquire() as conn:
         vals = _coerce(data)
@@ -347,8 +533,7 @@ async def sb_create_product(data: dict, x_admin_token: Optional[str] = Header(No
 
 
 @api_router.put("/sb/products/{pid}")
-async def sb_update_product(pid: str, data: dict, x_admin_token: Optional[str] = Header(None)):
-    _check_admin(x_admin_token)
+async def sb_update_product(pid: str, data: dict, staff: dict = STAFF):
     updates = _coerce(data)
     updates.pop('sku', None)  # SKU bleibt fix
     pool = await sb_db.get_pool()
@@ -367,8 +552,7 @@ async def sb_update_product(pid: str, data: dict, x_admin_token: Optional[str] =
 
 
 @api_router.delete("/sb/products/{pid}")
-async def sb_delete_product(pid: str, x_admin_token: Optional[str] = Header(None)):
-    _check_admin(x_admin_token)
+async def sb_delete_product(pid: str, staff: dict = STAFF):
     pool = await sb_db.get_pool()
     async with pool.acquire() as conn:
         res = await conn.execute("delete from products where id=$1", pid)
@@ -395,8 +579,7 @@ async def sb_list_drawings(vehicle: Optional[str] = None, assembly_group: Option
 
 
 @api_router.post("/sb/explosion-drawings")
-async def sb_create_drawing(data: dict, x_admin_token: Optional[str] = Header(None)):
-    _check_admin(x_admin_token)
+async def sb_create_drawing(data: dict, staff: dict = STAFF):
     pool = await sb_db.get_pool()
     async with pool.acquire() as conn:
         r = await conn.fetchrow(
@@ -407,8 +590,7 @@ async def sb_create_drawing(data: dict, x_admin_token: Optional[str] = Header(No
 
 
 @api_router.delete("/sb/explosion-drawings/{did}")
-async def sb_delete_drawing(did: str, x_admin_token: Optional[str] = Header(None)):
-    _check_admin(x_admin_token)
+async def sb_delete_drawing(did: str, staff: dict = STAFF):
     pool = await sb_db.get_pool()
     async with pool.acquire() as conn:
         res = await conn.execute("delete from explosion_drawings where id=$1", did)
@@ -418,8 +600,7 @@ async def sb_delete_drawing(did: str, x_admin_token: Optional[str] = Header(None
 
 
 @api_router.post("/sb/upload")
-async def sb_upload(files: List[UploadFile] = File(...), x_admin_token: Optional[str] = Header(None)):
-    _check_admin(x_admin_token)
+async def sb_upload(files: List[UploadFile] = File(...), staff: dict = STAFF):
     urls = []
     for f in files:
         content = await f.read()
@@ -676,8 +857,7 @@ def _order_row(r):
 
 
 @api_router.get("/sb/orders")
-async def sb_list_orders(x_admin_token: Optional[str] = Header(None)):
-    _check_admin(x_admin_token)
+async def sb_list_orders(staff: dict = STAFF):
     pool = await sb_db.get_pool()
     async with pool.acquire() as conn:
         rows = await conn.fetch(ORDER_JOIN_SQL + " order by o.created_at desc")
@@ -685,9 +865,7 @@ async def sb_list_orders(x_admin_token: Optional[str] = Header(None)):
 
 
 @api_router.post("/sb/orders/{order_id}/shipping-label")
-async def sb_upload_shipping_label(order_id: str, file: UploadFile = File(...),
-                                   x_admin_token: Optional[str] = Header(None)):
-    _check_admin(x_admin_token)
+async def sb_upload_shipping_label(order_id: str, file: UploadFile = File(...), staff: dict = STAFF):
     pool = await sb_db.get_pool()
     async with pool.acquire() as conn:
         row = await conn.fetchrow(ORDER_JOIN_SQL + " where o.id=$1", order_id)
@@ -734,9 +912,7 @@ async def sb_upload_shipping_label(order_id: str, file: UploadFile = File(...),
 
 
 @api_router.get("/sb/invoices/export")
-async def sb_export_invoices(year: int = Query(...), month: int = Query(...),
-                             x_admin_token: Optional[str] = Header(None)):
-    _check_admin(x_admin_token)
+async def sb_export_invoices(year: int = Query(...), month: int = Query(...), staff: dict = STAFF):
     if not (1 <= month <= 12):
         raise HTTPException(status_code=400, detail="Ungültiger Monat")
     start = datetime(year, month, 1, tzinfo=timezone.utc)
@@ -795,6 +971,23 @@ async def seed_db():
         logger.info(f"Seeded {len(docs)} products into DB")
     else:
         logger.info(f"DB already has {count} products, skipping seed")
+
+
+@app.on_event("startup")
+async def seed_admin():
+    if not ADMIN_EMAIL:
+        logger.warning("ADMIN_EMAIL nicht gesetzt - kein Admin-Konto angelegt")
+        return
+    pool = await sb_db.get_pool()
+    async with pool.acquire() as conn:
+        existing = await auth_service.get_user_by_email(conn, ADMIN_EMAIL)
+        if existing is None:
+            await conn.execute(
+                "insert into users (email, password_hash, name, role) values ($1,$2,'Admin','admin')",
+                ADMIN_EMAIL.lower().strip(), auth_service.hash_password(ADMIN_PASSWORD))
+            logger.info(f"Admin-Konto angelegt: {ADMIN_EMAIL}")
+        else:
+            logger.info(f"Admin-Konto bereits vorhanden: {ADMIN_EMAIL}")
 
 
 @app.on_event("shutdown")

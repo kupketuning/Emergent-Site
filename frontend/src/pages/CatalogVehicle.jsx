@@ -86,12 +86,12 @@ const CatalogVehicle = () => {
 
       {SHOW_SPECIAL_BUTTONS.includes(v.code) && (
         <div className="mt-12 pt-8 border-t border-gray-200 grid grid-cols-1 sm:grid-cols-2 gap-5">
-          <Link to="/normteile" data-testid="link-normteile" className="group flex items-center gap-4 border border-gray-200 rounded-xl p-6 hover:border-[#2EC4B6] hover:shadow-lg transition-all">
-            <span className="w-12 h-12 rounded-full bg-[#2EC4B6]/10 flex items-center justify-center shrink-0 group-hover:bg-[#2EC4B6]/20 transition-colors">
-              <Boxes className="w-6 h-6 text-[#2EC4B6]" strokeWidth={1.8} />
+          <Link to="/normteile" data-testid="link-normteile" className="group flex items-center gap-4 border border-gray-200 rounded-xl p-6 hover:border-[#148F81] hover:shadow-lg transition-all">
+            <span className="w-12 h-12 rounded-full bg-[#148F81]/10 flex items-center justify-center shrink-0 group-hover:bg-[#148F81]/20 transition-colors">
+              <Boxes className="w-6 h-6 text-[#148F81]" strokeWidth={1.8} />
             </span>
             <div>
-              <p className="font-logo font-bold text-lg text-[#17191d] uppercase group-hover:text-[#2EC4B6] transition-colors">Normteile</p>
+              <p className="font-logo font-bold text-lg text-[#17191d] uppercase group-hover:text-[#148F81] transition-colors">Normteile</p>
               <p className="text-sm text-gray-500">Schrauben, Muttern & Splinte – ohne Fahrzeugzuordnung</p>
             </div>
           </Link>
